@@ -5,10 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Ultimate Home Comparison Tool</title>
     
-    <!-- ADD CHART.JS LIBRARY -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <!-- ADD LEAFLET MAP LIBRARY -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -44,7 +41,6 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; background: white; padding: 20px; border-radius: 8px; border: 1px solid var(--border);}
         
-        /* GLOBAL DASHBOARD (MAP & CHART) */
         .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; display: none;}
         .dashboard-panel { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);}
         .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
@@ -53,8 +49,6 @@
         
         .global-chart-container { position: relative; height: 230px; width: 100%; }
         #map { height: 230px; width: 100%; border-radius: 5px; z-index: 1;}
-
-        /* ROW LEVEL LINE CHART */
         .history-chart-container { position: relative; height: 150px; width: 100%; }
         
         .table-controls { margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;}
@@ -64,7 +58,7 @@
         table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 600px; }
         th, td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 15px 12px; text-align: left; vertical-align: top; }
         
-        th:first-child { background: #f4f6f9; position: sticky; left: 0; z-index: 2; width: 110px; font-weight: 800; border-right: 2px solid #ddd; box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1); }
+        th:first-child { background: #f4f6f9; position: sticky; left: 0; z-index: 2; width: 130px; font-weight: 800; border-right: 2px solid #ddd; box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1); }
         th:not(:first-child), td { min-width: 280px; max-width: 350px; background: white; position: relative; z-index: 1; }
         thead th { background: var(--bg); font-size: 1.1rem; color: var(--primary); position: sticky; top: 0; z-index: 3; }
         thead th:first-child { z-index: 4; } 
@@ -76,6 +70,7 @@
         .edit-btn:hover { background: #e0a800; }
         .ai-content { padding-top: 15px; font-size: 0.95rem; color: #333; line-height: 1.5; }
         .ai-content p { margin-top: 0; }
+        .ai-content b { color: var(--primary); display: block; margin-top: 10px; border-bottom: 1px solid #ccc; padding-bottom: 3px; }
 
         .carousel { position: relative; width: 100%; height: 180px; border-radius: 8px; background: #eee; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.1); cursor: pointer;}
         .carousel-img { width: 100%; height: 100%; object-fit: cover; display: none; }
@@ -130,7 +125,6 @@
             .form-grid { grid-template-columns: 1fr; gap: 10px;}
             .form-grid div.full-width { grid-column: span 1; }
             .lightbox-img { max-height: 60vh; }
-            
             .dashboard-grid { grid-template-columns: 1fr; }
             .dashboard-header { flex-direction: column; align-items: flex-start; gap: 10px; }
         }
@@ -177,10 +171,7 @@
 
             <div id="tableTab" class="tab-content active">
                 
-                <!-- NEW GLOBAL DASHBOARD (MAP & CHART) -->
                 <div class="dashboard-grid" id="dashboardGrid">
-                    
-                    <!-- THE MAP -->
                     <div class="dashboard-panel">
                         <div class="dashboard-header">
                             <h3>📍 Locations</h3>
@@ -188,7 +179,6 @@
                         <div id="map"></div>
                     </div>
                     
-                    <!-- THE CHART -->
                     <div class="dashboard-panel">
                         <div class="dashboard-header">
                             <h3>📈 Market Overview</h3>
@@ -228,7 +218,6 @@
         </div>
     </div>
 
-    <!-- MANUAL EDIT MODAL -->
     <div id="editModal" class="modal-overlay">
         <div class="modal-content">
             <h3>✏️ Manual Edit & Photo Manager</h3>
@@ -241,7 +230,6 @@
         </div>
     </div>
 
-    <!-- FULL SCREEN LIGHTBOX -->
     <div id="lightbox" class="lightbox-overlay">
         <button class="lightbox-close" onclick="closeLightbox()">✖</button>
         <img id="lightboxImg" class="lightbox-img" src="" alt="Full Screen Home Photo">
@@ -256,8 +244,18 @@
         // PUT YOUR WORKER URL HERE
         const WORKER_URL = "https://homes-api.sweet-dream-0ed6.workers.dev/";
 
-        const allColumns = ["Images", "Price_History", "Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size", "HOA_Fee", "Year_Built", "Heating_Cooling", "Parking", "Pros", "Cons", "Summary"];
-        let visibleColumns = ["Images", "Price_History", "Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size", "HOA_Fee", "Pros"];
+        // 🏡 UPDATED COLUMNS LIST - Added Crime, Schools, Garage, Noise, Amenities, etc.
+        const allColumns = [
+            "Images", "Price_History", "Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size", "HOA_Fee", "Year_Built", 
+            "Heating_Cooling", "Parking", "Garage", "Street_Type", "Crime_Rate", "School_System", "Grocery_Proximity", 
+            "Noise_Level", "Nearby_Amenities", "Closest_Park", "Pros", "Cons", "Summary"
+        ];
+        
+        // 🏡 UPDATED DEFAULT VISIBLE COLUMNS
+        let visibleColumns = [
+            "Images", "Price_History", "Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size", 
+            "Crime_Rate", "School_System", "Grocery_Proximity", "Pros"
+        ];
         
         let homes = [];
         let carouselState = {}; 
@@ -269,7 +267,6 @@
 
         let globalChartInstance = null;
         let lineChartInstances = {};
-        
         let mapInstance = null;
         let markerGroup = null;
 
@@ -279,9 +276,7 @@
                 homes = data.homes;
                 document.getElementById('globalLoader').style.display = 'none';
                 renderTable();
-            } catch (err) {
-                document.getElementById('globalLoader').innerText = "❌ Error loading database: " + err.message;
-            }
+            } catch (err) { document.getElementById('globalLoader').innerText = "❌ Error loading database: " + err.message; }
         };
 
         function toggleSidebar() {
@@ -297,10 +292,7 @@
             document.getElementById(tabId).classList.add('active');
             event.target.classList.add('active');
             
-            // Fix map sizing bug when un-hiding a tab
-            if(tabId === 'tableTab' && mapInstance) {
-                setTimeout(() => { mapInstance.invalidateSize(); }, 200);
-            }
+            if(tabId === 'tableTab' && mapInstance) setTimeout(() => { mapInstance.invalidateSize(); }, 200);
         }
 
         function toggleMode() {
@@ -420,13 +412,16 @@
                 </div>`;
             }
 
+            // Exclude Price_History array
             const textFieldsHtml = allColumns.filter(c => c !== 'Images' && c !== 'Price_History').map(col => {
-                const isLongText = ["Pros", "Cons", "Summary"].includes(col);
+                // Determine if field should be a large text box
+                const isLongText = ["Pros", "Cons", "Summary", "Nearby_Amenities", "Crime_Rate", "School_System", "Grocery_Proximity", "Noise_Level"].includes(col);
                 const value = String(home[col] || '').replace(/"/g, '&quot;');
+                
                 if (isLongText) {
-                    return `<div class="full-width" style="margin-bottom:10px;"><label style="font-size:0.85rem; font-weight:bold;">${col}</label><br><textarea id="edit-${col}" style="height:80px; width:100%; box-sizing:border-box;">${value}</textarea></div>`;
+                    return `<div class="full-width" style="margin-bottom:10px;"><label style="font-size:0.85rem; font-weight:bold;">${col.replace('_', ' ')}</label><br><textarea id="edit-${col}" style="height:80px; width:100%; box-sizing:border-box;">${value}</textarea></div>`;
                 } else {
-                    return `<div style="margin-bottom:10px;"><label style="font-size:0.85rem; font-weight:bold;">${col}</label><br><input type="text" id="edit-${col}" value="${value}" style="width:100%; box-sizing:border-box;" /></div>`;
+                    return `<div style="margin-bottom:10px;"><label style="font-size:0.85rem; font-weight:bold;">${col.replace('_', ' ')}</label><br><input type="text" id="edit-${col}" value="${value}" style="width:100%; box-sizing:border-box;" /></div>`;
                 }
             }).join("");
             
@@ -528,7 +523,7 @@
         }
 
         // ==========================================
-        // DATA VISUALIZATION (MAPS & CHARTS)
+        // DATA VISUALIZATION
         // ==========================================
         function cleanNumber(str) {
             if (!str || str === "N/A") return 0;
@@ -571,19 +566,16 @@
         }
 
         function updateMap() {
-            // Initialize map if it doesn't exist
             if (!mapInstance) {
-                mapInstance = L.map('map').setView([39.8283, -98.5795], 4); // Center of US
+                mapInstance = L.map('map').setView([39.8283, -98.5795], 4);
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     attribution: '&copy; OpenStreetMap contributors'
                 }).addTo(mapInstance);
             }
 
-            // Clear old markers
             if (markerGroup) { mapInstance.removeLayer(markerGroup); }
             
             let markers = [];
-            
             homes.forEach((h, i) => {
                 if (h.Latitude && h.Longitude && h.Latitude !== "N/A") {
                     let price = h.Price || "N/A";
@@ -595,7 +587,6 @@
 
             if (markers.length > 0) {
                 markerGroup = L.featureGroup(markers).addTo(mapInstance);
-                // Zoom map to show all markers beautifully
                 mapInstance.fitBounds(markerGroup.getBounds().pad(0.2));
             }
         }
@@ -641,8 +632,6 @@
                 });
             });
         }
-        // ==========================================
-
 
         function renderTable() {
             const togglesDiv = document.getElementById('columnToggles');
@@ -700,7 +689,7 @@
                             if (home.Price_History && Array.isArray(home.Price_History) && home.Price_History.length > 0) {
                                 bodyHtml += `<td><div class="history-chart-container"><canvas id="chart-${homeIndex}"></canvas></div></td>`;
                             } else {
-                                bodyHtml += `<td><em style="color:#999; font-size:0.85rem;">No history found. Try copying full history block from Zillow/Redfin.</em></td>`;
+                                bodyHtml += `<td><em style="color:#999; font-size:0.85rem;">No history found.</em></td>`;
                             }
                         } else {
                             bodyHtml += `<td>${home[col] || "N/A"}</td>`;
@@ -730,7 +719,6 @@
 
                 tbody.innerHTML = bodyHtml;
                 
-                // Draw visualizations after DOM paints
                 updateGlobalChart();
                 updateMap();
                 setTimeout(drawLineCharts, 50); 
