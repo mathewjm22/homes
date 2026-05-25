@@ -59,11 +59,18 @@
 
         /* MODAL CSS */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-content { background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .modal-content { background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 650px; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
         .modal-content h3 { margin-top: 0; }
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .form-grid div.full-width { grid-column: span 2; }
         .modal-btns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+        
+        /* PHOTO MANAGER CSS */
+        .edit-img-grid { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; margin-top: 5px;}
+        .edit-img-container { position: relative; width: 120px; flex-shrink: 0; }
+        .edit-img-thumbnail { width: 120px; height: 90px; object-fit: cover; border-radius: 5px; border: 1px solid #ccc; }
+        .delete-img-cb { position: absolute; top: 5px; right: 5px; width: 22px; height: 22px; cursor: pointer; box-shadow: 0 0 5px rgba(0,0,0,0.5); accent-color: red;}
+        .delete-overlay-text { position: absolute; bottom: 5px; left: 5px; background: rgba(0,0,0,0.7); color: white; font-size: 0.7rem; padding: 2px 5px; border-radius: 3px; pointer-events: none;}
     </style>
 </head>
 <body>
@@ -118,7 +125,7 @@
     <!-- MANUAL EDIT MODAL -->
     <div id="editModal" class="modal-overlay">
         <div class="modal-content">
-            <h3>✏️ Manual Edit Override</h3>
+            <h3>✏️ Manual Edit & Photo Manager</h3>
             <div id="editFormFields" class="form-grid"></div>
             <div class="modal-btns">
                 <button onclick="closeModal()" style="background: #6c757d; width:auto;">Cancel</button>
@@ -130,13 +137,13 @@
 
     <script>
         // PUT YOUR WORKER URL HERE
-        const WORKER_URL = "https://homes-api.sweet-dream-0ed6.workers.dev/";
+        const WORKER_URL = "https://homes-api.YOUR-NAME.workers.dev/";
 
         const allColumns = ["Images", "Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size", "HOA_Fee", "Year_Built", "Heating_Cooling", "Parking", "Pros", "Cons", "Summary"];
         let visibleColumns = ["Images", "Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size"];
         let homes = [];
         let carouselState = {}; 
-        let editingIndex = null; // Tracks which row is being manually edited
+        let editingIndex = null; 
 
         window.onload = async function() {
             try {
@@ -244,10 +251,31 @@
             editingIndex = index;
             const home = homes[index];
             
-            // Dynamically generate form fields for everything EXCEPT images
-            const formHtml = allColumns.filter(c => c !== 'Images').map(col => {
+            // 1. Generate Photo Manager UI
+            let imgs = home.Images || [];
+            if(imgs.length === 0 && home.Image && home.Image !== "N/A") imgs = [home.Image];
+            
+            let photoManagerHtml = "";
+            if(imgs.length > 0) {
+                photoManagerHtml = `
+                <div class="full-width" style="margin-bottom:15px; background: #fff3cd; padding: 10px; border-radius: 5px; border: 1px solid #ffeeba;">
+                    <label style="font-size:0.9rem; font-weight:bold; color: #856404;">🗑️ Photo Manager</label>
+                    <p style="margin:0; font-size:0.75rem; color:#856404;">Check the box in the top right of any photo to permanently delete it.</p>
+                    <div class="edit-img-grid">
+                        ${imgs.map((src, i) => `
+                            <div class="edit-img-container">
+                                <img src="${src}" class="edit-img-thumbnail">
+                                <input type="checkbox" class="delete-img-cb" value="${i}">
+                            </div>
+                        `).join("")}
+                    </div>
+                </div>`;
+            }
+
+            // 2. Generate Text Fields
+            const textFieldsHtml = allColumns.filter(c => c !== 'Images').map(col => {
                 const isLongText = ["Pros", "Cons", "Summary"].includes(col);
-                const value = (home[col] || '').replace(/"/g, '&quot;'); // Prevent breaking HTML
+                const value = (home[col] || '').replace(/"/g, '&quot;');
                 
                 if (isLongText) {
                     return `<div class="full-width" style="margin-bottom:10px;">
@@ -262,7 +290,7 @@
                 }
             }).join("");
             
-            document.getElementById('editFormFields').innerHTML = formHtml;
+            document.getElementById('editFormFields').innerHTML = photoManagerHtml + textFieldsHtml;
             document.getElementById('editModal').style.display = 'flex';
         }
 
@@ -276,14 +304,26 @@
             document.getElementById('saveEditBtn').disabled = true;
 
             try {
-                // Copy existing home so we don't lose the Images
                 const updatedHome = { ...homes[editingIndex] };
                 
-                // Overwrite keys with new form values
+                // 1. Process Image Deletions
+                const checkboxes = document.querySelectorAll('.delete-img-cb');
+                const indicesToRemove = Array.from(checkboxes).filter(cb => cb.checked).map(cb => parseInt(cb.value));
+                
+                let currentImgs = updatedHome.Images || [];
+                if(currentImgs.length === 0 && updatedHome.Image && updatedHome.Image !== "N/A") {
+                    currentImgs = [updatedHome.Image];
+                }
+                
+                updatedHome.Images = currentImgs.filter((_, i) => !indicesToRemove.includes(i));
+                updatedHome.Image = "N/A"; // Clean up legacy single image string
+
+                // 2. Process Text Field Updates
                 allColumns.filter(c => c !== 'Images').forEach(col => {
                     updatedHome[col] = document.getElementById(`edit-${col}`).value;
                 });
 
+                // 3. Send to Server
                 const data = await apiCall({ action: "manual_edit", index: editingIndex, homeData: updatedHome });
                 homes = data.homes;
                 renderTable();
@@ -369,7 +409,6 @@
                         return `<td>${home[col] || "N/A"}</td>`;
                     }).join("");
 
-                    // NEW ACTION BUTTONS COLUMN
                     columnsHtml += `<td>
                         <div class="action-btns">
                             <button id="ai-btn-${homeIndex}" class="ai-btn" onclick="runComparison(${homeIndex})">⚖️ Compare</button>
