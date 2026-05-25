@@ -15,9 +15,7 @@
         button:hover { background: #0056b3; }
         button:disabled { background: #ccc; cursor: not-allowed; }
         
-        /* Edit Mode Toggles */
         .mode-toggle { display: flex; gap: 10px; margin-bottom: 10px; font-size: 0.9rem; }
-        
         .rich-text-box { height: 150px; overflow-y: auto; border: 1px solid var(--border); border-radius: 5px; padding: 10px; margin-bottom: 15px; background: #fff; font-size: 0.8rem; }
         .rich-text-box:empty:before { content: attr(placeholder); color: #999; }
 
@@ -34,6 +32,13 @@
         th, td { border: 1px solid var(--border); padding: 12px; text-align: left; vertical-align: top;}
         th { background: var(--bg); }
         
+        /* Expandable AI Row Styles */
+        .ai-row { display: none; background: #eef5ff; border-left: 4px solid var(--primary); }
+        .ai-content { padding: 15px 20px; font-size: 0.95rem; color: #333; }
+        .ai-content p { margin-top: 0; }
+        .ai-btn { background: #28a745; margin-bottom: 0; width: 100%; padding: 8px;}
+        .ai-btn:hover { background: #218838; }
+
         /* CAROUSEL */
         .carousel { position: relative; width: 160px; height: 110px; border-radius: 8px; background: #eee; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .carousel-img { width: 100%; height: 100%; object-fit: cover; display: none; }
@@ -53,19 +58,13 @@
 
     <div class="sidebar">
         <h2>➕ Manage Database</h2>
-        
-        <!-- Toggle New vs Update -->
         <div class="mode-toggle">
             <label><input type="radio" name="entryMode" value="new" checked onchange="toggleMode()"> Add New</label>
             <label><input type="radio" name="entryMode" value="update" onchange="toggleMode()"> Edit/Update</label>
         </div>
-        
-        <!-- Appears only when updating -->
         <select id="updateSelect" style="display: none;"></select>
-
         <p style="font-size: 0.8rem; color: #666;" id="pasteInstructions">Paste Redfin/Zillow content here (Ctrl+A -> Ctrl+C):</p>
         <div id="rawContent" class="rich-text-box" contenteditable="true" placeholder="Paste rich text or images here..."></div>
-        
         <button id="submitBtn" onclick="processEntry()">Extract & Add Home</button>
         <div id="sidebarLoader" class="loader">Processing to Cloud...</div>
     </div>
@@ -132,18 +131,14 @@
 
         function toggleMode() {
             const mode = document.querySelector('input[name="entryMode"]:checked').value;
-            const updateSelect = document.getElementById('updateSelect');
-            const submitBtn = document.getElementById('submitBtn');
-            const instructions = document.getElementById('pasteInstructions');
-            
             if (mode === "update") {
-                updateSelect.style.display = 'block';
-                submitBtn.innerText = "Merge & Update Home";
-                instructions.innerText = "Paste NEW images or text to add to this home:";
+                document.getElementById('updateSelect').style.display = 'block';
+                document.getElementById('submitBtn').innerText = "Merge & Update Home";
+                document.getElementById('pasteInstructions').innerText = "Paste NEW images or text to add to this home:";
             } else {
-                updateSelect.style.display = 'none';
-                submitBtn.innerText = "Extract & Add Home";
-                instructions.innerText = "Paste Redfin/Zillow content here (Ctrl+A -> Ctrl+C):";
+                document.getElementById('updateSelect').style.display = 'none';
+                document.getElementById('submitBtn').innerText = "Extract & Add Home";
+                document.getElementById('pasteInstructions').innerText = "Paste Redfin/Zillow content here (Ctrl+A -> Ctrl+C):";
             }
         }
 
@@ -158,43 +153,63 @@
             return data;
         }
 
+        // ---------- NEW: GENERATE AI COMPARISON ROW ----------
+        async function runComparison(index) {
+            if (homes.length < 2) return alert("You need at least 2 homes to generate a comparison.");
+            
+            const row = document.getElementById(`ai-row-${index}`);
+            const content = document.getElementById(`ai-content-${index}`);
+            const btn = document.getElementById(`ai-btn-${index}`);
+
+            // Toggle logic: close it if it's open and already loaded
+            if (row.style.display === "table-row" && !content.innerHTML.includes("Loading")) {
+                row.style.display = "none";
+                btn.innerText = "⚖️ Compare";
+                return;
+            }
+
+            // Open row and show loading state
+            row.style.display = "table-row";
+            content.innerHTML = "<em>Analyzing database and comparing homes... 🤖</em>";
+            btn.disabled = true;
+
+            try {
+                const data = await apiCall({ action: "compare_home", index: index });
+                content.innerHTML = data.analysis; // Inject the HTML formatted by the AI
+                btn.innerText = "Close Analysis";
+            } catch(err) {
+                content.innerHTML = `<span style="color:red">Error: ${err.message}</span>`;
+            }
+            btn.disabled = false;
+        }
+        // -----------------------------------------------------
+
         async function processEntry() {
             const mode = document.querySelector('input[name="entryMode"]:checked').value;
             const container = document.getElementById('rawContent');
-            const plainText = container.innerText;
             const updateIndex = document.getElementById('updateSelect').value;
 
-            // Find valid images
             let imageUrls = [];
-            const images = container.querySelectorAll('img');
-            for (let img of images) {
+            for (let img of container.querySelectorAll('img')) {
                 let src = img.getAttribute('src') || img.src;
-                if (src && src.startsWith('http') && !src.includes('base64')) {
-                    if (!imageUrls.includes(src)) imageUrls.push(src);
-                }
+                if (src && src.startsWith('http') && !src.includes('base64') && !imageUrls.includes(src)) imageUrls.push(src);
             }
 
-            if (!plainText.trim() && imageUrls.length === 0) return alert("Please paste content or images first.");
+            if (!container.innerText.trim() && imageUrls.length === 0) return alert("Please paste content or images.");
             if (mode === "update" && updateIndex === "") return alert("Please select a home to update.");
 
             document.getElementById('sidebarLoader').style.display = 'block';
             document.getElementById('submitBtn').disabled = true;
             
             try {
-                let payload = {
-                    action: mode === "update" ? "update" : "extract",
-                    text: plainText,
-                    imageUrls: imageUrls
-                };
+                let payload = { action: mode, text: container.innerText, imageUrls: imageUrls };
                 if (mode === "update") payload.index = parseInt(updateIndex);
 
                 const data = await apiCall(payload);
                 homes = data.homes; 
                 container.innerHTML = ''; 
                 renderTable();
-            } catch (err) {
-                alert("Error: " + err.message);
-            }
+            } catch (err) { alert("Error: " + err.message); }
             
             document.getElementById('sidebarLoader').style.display = 'none';
             document.getElementById('submitBtn').disabled = false;
@@ -203,56 +218,44 @@
         async function askQuestion() {
             const question = document.getElementById('chatInput').value;
             if (!question) return;
-
             document.getElementById('chatLoader').style.display = 'block';
-            document.getElementById('chatOutput').innerText = "";
             try {
                 const data = await apiCall({ action: "chat", question: question });
                 document.getElementById('chatOutput').innerText = data.answer;
-            } catch (err) {
-                document.getElementById('chatOutput').innerText = "Error: " + err.message;
-            }
+            } catch (err) { document.getElementById('chatOutput').innerText = "Error: " + err.message; }
             document.getElementById('chatLoader').style.display = 'none';
         }
 
         async function deleteHome() {
             const index = document.getElementById('deleteSelect').value;
             if (index === "") return;
-
             document.getElementById('deleteLoader').style.display = 'block';
-            document.getElementById('deleteBtn').disabled = true;
             try {
                 const data = await apiCall({ action: "delete", index: parseInt(index) });
-                homes = data.homes; 
-                renderTable();
-            } catch (err) {
-                alert("Error deleting home: " + err.message);
-            }
+                homes = data.homes; renderTable();
+            } catch (err) { alert("Error deleting home: " + err.message); }
             document.getElementById('deleteLoader').style.display = 'none';
-            document.getElementById('deleteBtn').disabled = false;
         }
 
         function toggleColumn(col) {
-            if (visibleColumns.includes(col)) {
-                visibleColumns = visibleColumns.filter(c => c !== col);
-            } else {
-                visibleColumns.push(col);
-                visibleColumns.sort((a, b) => allColumns.indexOf(a) - allColumns.indexOf(b)); 
-            }
+            if (visibleColumns.includes(col)) visibleColumns = visibleColumns.filter(c => c !== col);
+            else { visibleColumns.push(col); visibleColumns.sort((a, b) => allColumns.indexOf(a) - allColumns.indexOf(b)); }
             renderTable();
         }
 
         function changeSlide(homeIndex, direction) {
-            let imgs = homes[homeIndex].Images || (homes[homeIndex].Image && homes[homeIndex].Image !== "N/A" ? [homes[homeIndex].Image] : []);
+            let imgs = homes[homeIndex].Images || [];
+            if(imgs.length===0 && homes[homeIndex].Image && homes[homeIndex].Image !== "N/A") imgs = [homes[homeIndex].Image];
+            
             let max = imgs.length;
             let current = carouselState[homeIndex] || 0;
-            
             document.getElementById(`img-${homeIndex}-${current}`).classList.remove('active');
+            
             current += direction;
             if (current < 0) current = max - 1;
             if (current >= max) current = 0;
-            document.getElementById(`img-${homeIndex}-${current}`).classList.add('active');
             
+            document.getElementById(`img-${homeIndex}-${current}`).classList.add('active');
             carouselState[homeIndex] = current;
             let counter = document.getElementById(`counter-${homeIndex}`);
             if(counter) counter.innerText = `${current + 1} / ${max}`;
@@ -266,18 +269,21 @@
                 togglesDiv.innerHTML += `<label><input type="checkbox" onchange="toggleColumn('${col}')" ${checked}> ${col}</label>`;
             });
 
+            // ADD THE AI INSIGHTS COLUMN HEADER
             const thead = document.getElementById('tableHeader');
-            thead.innerHTML = visibleColumns.map(col => `<th>${col}</th>`).join("");
+            thead.innerHTML = visibleColumns.map(col => `<th>${col}</th>`).join("") + `<th>AI Insights</th>`;
 
             const tbody = document.getElementById('tableBody');
             carouselState = {}; 
 
             if (homes.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="${visibleColumns.length}" style="text-align:center;">No homes saved yet. Add one from the sidebar!</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="${visibleColumns.length + 1}" style="text-align:center;">No homes saved yet. Add one from the sidebar!</td></tr>`;
             } else {
                 tbody.innerHTML = homes.map((home, homeIndex) => {
                     carouselState[homeIndex] = 0; 
-                    return `<tr>${visibleColumns.map(col => {
+                    
+                    // Generate regular columns
+                    let columnsHtml = visibleColumns.map(col => {
                         if (col === "Images") {
                             let imgs = home.Images || (home.Image && home.Image !== "N/A" ? [home.Image] : []);
                             if (imgs.length > 0) {
@@ -287,27 +293,32 @@
                                     carouselHtml += `<img src="${src}" id="img-${homeIndex}-${imgIndex}" class="carousel-img ${activeClass}" alt="Home">`;
                                 });
                                 if (imgs.length > 1) {
-                                    carouselHtml += `
-                                        <button class="carousel-btn left" onclick="changeSlide(${homeIndex}, -1)">&#10094;</button>
-                                        <button class="carousel-btn right" onclick="changeSlide(${homeIndex}, 1)">&#10095;</button>
-                                        <div class="carousel-counter" id="counter-${homeIndex}">1 / ${imgs.length}</div>
-                                    `;
+                                    carouselHtml += `<button class="carousel-btn left" onclick="changeSlide(${homeIndex}, -1)">&#10094;</button>
+                                                     <button class="carousel-btn right" onclick="changeSlide(${homeIndex}, 1)">&#10095;</button>
+                                                     <div class="carousel-counter" id="counter-${homeIndex}">1 / ${imgs.length}</div>`;
                                 }
                                 carouselHtml += `</div>`;
                                 return `<td>${carouselHtml}</td>`;
-                            } else {
-                                return `<td><div class="carousel" style="display:flex; align-items:center; justify-content:center; color:#999; font-size: 0.8rem;">No Images</div></td>`;
-                            }
+                            } else return `<td><div class="carousel" style="display:flex; align-items:center; justify-content:center; color:#999; font-size: 0.8rem;">No Images</div></td>`;
                         }
                         return `<td>${home[col] || "N/A"}</td>`;
-                    }).join("")}</tr>`;
+                    }).join("");
+
+                    // Add Compare Button
+                    columnsHtml += `<td><button id="ai-btn-${homeIndex}" class="ai-btn" onclick="runComparison(${homeIndex})">⚖️ Compare</button></td>`;
+                    
+                    // Add Hidden AI Row right underneath it
+                    let aiRow = `<tr id="ai-row-${homeIndex}" class="ai-row">
+                                    <td colspan="${visibleColumns.length + 1}">
+                                        <div id="ai-content-${homeIndex}" class="ai-content"></div>
+                                    </td>
+                                 </tr>`;
+
+                    return `<tr>${columnsHtml}</tr>` + aiRow;
                 }).join("");
             }
 
-            // Populate both dropdowns (Update and Delete)
-            const dropdownHTML = `<option value="">Select a home...</option>` + 
-                homes.map((h, i) => `<option value="${i}">${h.Address || "Unnamed Home"}</option>`).join("");
-            
+            const dropdownHTML = `<option value="">Select a home...</option>` + homes.map((h, i) => `<option value="${i}">${h.Address || "Unnamed Home"}</option>`).join("");
             document.getElementById('deleteSelect').innerHTML = dropdownHTML;
             document.getElementById('updateSelect').innerHTML = dropdownHTML;
         }
