@@ -40,11 +40,6 @@
 <body>
 
     <div class="sidebar">
-        <h2>⚙️ Settings</h2>
-        <input type="password" id="appPassword" placeholder="App Password" onchange="savePassword()">
-        <p style="font-size: 0.75rem; color: green; margin-top: -10px; display: none;" id="pwSavedMsg">Password saved locally!</p>
-        <hr style="border:0; border-top:1px solid #ccc; margin: 20px 0;">
-        
         <h2>➕ Add Home</h2>
         <p style="font-size: 0.8rem; color: #666;">Paste Redfin/Zillow text (Ctrl+A -> Ctrl+C -> Paste here):</p>
         <textarea id="rawText"></textarea>
@@ -85,7 +80,6 @@
     </div>
 
     <script>
-        // --- HARDCODED WORKER URL ---
         const WORKER_URL = "https://homes.sweet-dream-0ed6.workers.dev/";
 
         // Default columns
@@ -101,31 +95,8 @@
             event.target.classList.add('active');
         }
 
-        // Save password locally
-        function savePassword() {
-            const pw = document.getElementById('appPassword').value;
-            localStorage.setItem('app_password', pw);
-            const msg = document.getElementById('pwSavedMsg');
-            msg.style.display = 'block';
-            setTimeout(() => msg.style.display = 'none', 3000);
-        }
-
-        // Load password on startup
-        window.onload = function() {
-            const savedPw = localStorage.getItem('app_password');
-            if (savedPw) {
-                document.getElementById('appPassword').value = savedPw;
-            }
-        };
-
         // --- Core Functions ---
         async function apiCall(bodyData) {
-            const appPassword = document.getElementById('appPassword').value;
-            
-            if (!appPassword) throw new Error("Missing App Password in settings.");
-            
-            bodyData.app_password = appPassword;
-
             const response = await fetch(WORKER_URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
