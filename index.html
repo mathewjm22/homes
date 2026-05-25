@@ -131,13 +131,11 @@
 </head>
 <body>
 
-    <!-- Mobile Header -->
     <div class="mobile-topbar">
         <h1>🏡 Home Comparator</h1>
         <button class="menu-btn" onclick="toggleSidebar()">☰ Menu</button>
     </div>
 
-    <!-- Dark Overlay for Mobile Sidebar -->
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
     <div class="sidebar" id="sidebar">
@@ -220,7 +218,7 @@
 
     <script>
         // PUT YOUR WORKER URL HERE
-        const WORKER_URL = "https://homes-api.YOUR-NAME.workers.dev/";
+        const WORKER_URL = "https://homes-api.sweet-dream-0ed6.workers.dev/";
 
         const allColumns = ["Images", "Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size", "HOA_Fee", "Year_Built", "Heating_Cooling", "Parking", "Pros", "Cons", "Summary"];
         let visibleColumns = ["Images", "Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size", "HOA_Fee", "Pros", "Cons"];
@@ -228,7 +226,6 @@
         let carouselState = {}; 
         let editingIndex = null; 
         
-        // Lightbox State
         let lbHomeIndex = null;
         let lbImgIndex = null;
         let lbImgArray = [];
@@ -244,7 +241,6 @@
             }
         };
 
-        // UI Interactions
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebarOverlay');
@@ -272,7 +268,6 @@
             }
         }
 
-        // Core API Logic
         async function apiCall(bodyData) {
             let response;
             try {
@@ -354,7 +349,9 @@
             document.getElementById('chatLoader').style.display = 'none';
         }
 
-        // Modal Edit Logic
+        // ==========================================
+        // FIX: STRING() WRAPPER ADDED TO VALUES BELOW
+        // ==========================================
         function openEditModal(index) {
             editingIndex = index;
             const home = homes[index];
@@ -381,7 +378,10 @@
 
             const textFieldsHtml = allColumns.filter(c => c !== 'Images').map(col => {
                 const isLongText = ["Pros", "Cons", "Summary"].includes(col);
-                const value = (home[col] || '').replace(/"/g, '&quot;');
+                
+                // BUG FIXED HERE: Wrap in String() before calling .replace()
+                const value = String(home[col] || '').replace(/"/g, '&quot;');
+                
                 if (isLongText) {
                     return `<div class="full-width" style="margin-bottom:10px;"><label style="font-size:0.85rem; font-weight:bold;">${col}</label><br><textarea id="edit-${col}" style="height:80px; width:100%; box-sizing:border-box;">${value}</textarea></div>`;
                 } else {
@@ -441,9 +441,8 @@
             renderTable();
         }
 
-        // --- CAROUSEL & LIGHTBOX LOGIC ---
         function changeSlide(event, homeIndex, direction) {
-            event.stopPropagation(); // Prevents click from bubbling up and opening the lightbox
+            event.stopPropagation(); 
             
             let imgs = homes[homeIndex].Images || [];
             if(imgs.length===0 && homes[homeIndex].Image && homes[homeIndex].Image !== "N/A") imgs = [homes[homeIndex].Image];
@@ -483,7 +482,6 @@
             if (lbImgIndex >= lbImgArray.length) lbImgIndex = 0;
             updateLightboxUI();
             
-            // Sync background table carousel with lightbox
             carouselState[lbHomeIndex] = lbImgIndex;
             document.querySelectorAll(`.carousel-img[id^="img-${lbHomeIndex}-"]`).forEach(img => img.classList.remove('active'));
             document.getElementById(`img-${lbHomeIndex}-${lbImgIndex}`).classList.add('active');
@@ -496,7 +494,6 @@
             document.getElementById('lightboxCounter').innerText = `${lbImgIndex + 1} / ${lbImgArray.length}`;
         }
 
-        // Table Render
         function renderTable() {
             const togglesDiv = document.getElementById('columnToggles');
             togglesDiv.innerHTML = "";
@@ -531,14 +528,12 @@
                         if (col === "Images") {
                             let imgs = home.Images || (home.Image && home.Image !== "N/A" ? [home.Image] : []);
                             if (imgs.length > 0) {
-                                // Added onclick to the carousel wrapper
                                 let carouselHtml = `<div class="carousel" onclick="openLightbox(${homeIndex})">`;
                                 imgs.forEach((src, imgIndex) => {
                                     let activeClass = imgIndex === 0 ? "active" : "";
                                     carouselHtml += `<img src="${src}" id="img-${homeIndex}-${imgIndex}" class="carousel-img ${activeClass}" alt="Home">`;
                                 });
                                 if (imgs.length > 1) {
-                                    // Notice event is passed into changeSlide
                                     carouselHtml += `<button class="carousel-btn left" onclick="changeSlide(event, ${homeIndex}, -1)">&#10094;</button>
                                                      <button class="carousel-btn right" onclick="changeSlide(event, ${homeIndex}, 1)">&#10095;</button>
                                                      <div class="carousel-counter" id="counter-${homeIndex}">1 / ${imgs.length}</div>`;
