@@ -184,7 +184,7 @@
         }
         // -----------------------------------------------------
 
-        async function processEntry() {
+async function processEntry() {
             const mode = document.querySelector('input[name="entryMode"]:checked').value;
             const container = document.getElementById('rawContent');
             const updateIndex = document.getElementById('updateSelect').value;
@@ -202,7 +202,8 @@
             document.getElementById('submitBtn').disabled = true;
             
             try {
-                let payload = { action: mode, text: container.innerText, imageUrls: imageUrls };
+                // FIXED LINE BELOW:
+                let payload = { action: mode === "update" ? "update" : "extract", text: container.innerText, imageUrls: imageUrls };
                 if (mode === "update") payload.index = parseInt(updateIndex);
 
                 const data = await apiCall(payload);
