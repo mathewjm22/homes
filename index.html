@@ -51,7 +51,6 @@
         .global-chart-container { position: relative; height: 230px; width: 100%; }
         #map { height: 230px; width: 100%; border-radius: 5px; z-index: 1;}
         
-        /* CUSTOM MAP MARKER STYLES */
         .map-marker { border-radius: 50%; color: white; text-align: center; line-height: 26px; font-weight: bold; font-size: 13px; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.5); text-shadow: 1px 1px 2px rgba(0,0,0,0.5);}
 
         .history-chart-container { position: relative; height: 150px; width: 100%; }
@@ -190,6 +189,7 @@
                             <h3>📈 Market Overview</h3>
                             <select id="chartMetric" onchange="updateGlobalChart()">
                                 <option value="Price">Compare by Price</option>
+                                <option value="Price_per_SqFt">Compare by Price/SqFt</option>
                                 <option value="SqFt">Compare by Square Feet</option>
                                 <option value="Lot_Size">Compare by Lot Size</option>
                                 <option value="HOA_Fee">Compare by HOA Fee</option>
@@ -249,19 +249,22 @@
 
     <script>
         // PUT YOUR WORKER URL HERE
-        const WORKER_URL = "https://homes-api.YOUR-NAME.workers.dev/";
+        const WORKER_URL = "https://homes-api.sweet-dream-0ed6.workers.dev/";
 
+        // 🏡 UPDATED COLUMNS LIST
         const allColumns = [
-            "Images", "Price_History", "Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size", "HOA_Fee", "Year_Built", 
-            "Heating_Cooling", "Parking", "Garage", "Street_Type", "Crime_Rate", "School_System", "Grocery_Proximity", 
-            "Noise_Level", "Nearby_Amenities", "Closest_Park", "Pros", "Cons", "Summary"
-        ];
-        let visibleColumns = [
-            "Images", "Price_History", "Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size", 
-            "Crime_Rate", "School_System", "Grocery_Proximity", "Pros"
+            "Images", "Price_History", "Address", "County", "Price", "Price_per_SqFt", "Beds", "Baths", "SqFt", 
+            "Lot_Size", "HOA_Fee", "Year_Built", "Year_Renovated", "Heating_Cooling", "Water", "Basement", 
+            "Parking", "Garage", "Features", "Street_Type", "Crime_Rate", "School_District", "Grocery_Proximity", 
+            "Noise_Score", "Nearby_Amenities", "Closest_Park", "Pros", "Cons", "Summary"
         ];
         
-        // VISUAL COLOR THEME FOR HOMES (Up to 15 unique colors)
+        // 🏡 UPDATED DEFAULT VISIBLE COLUMNS
+        let visibleColumns = [
+            "Images", "Price_History", "Address", "County", "Price", "Price_per_SqFt", "Beds", "Baths", 
+            "SqFt", "Year_Built", "Lot_Size", "HOA_Fee", "Features", "School_District", "Noise_Score", "Pros", "Cons"
+        ];
+        
         const homeColors = ['#e6194B', '#4363d8', '#3cb44b', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#fffac8', '#800000', '#aaffc3'];
         
         let homes = [];
@@ -343,7 +346,7 @@
             }
 
             content.style.display = "block";
-            content.innerHTML = "<em>Analyzing database and comparing to other homes... 🤖</em>";
+            content.innerHTML = "<em>Analyzing database and generating holistic report... 🤖</em>";
             btn.disabled = true;
 
             try {
@@ -419,14 +422,15 @@
                 </div>`;
             }
 
+            // Exclude Price_History array
             const textFieldsHtml = allColumns.filter(c => c !== 'Images' && c !== 'Price_History').map(col => {
-                const isLongText = ["Pros", "Cons", "Summary", "Nearby_Amenities", "Crime_Rate", "School_System", "Grocery_Proximity", "Noise_Level"].includes(col);
+                const isLongText = ["Pros", "Cons", "Summary", "Nearby_Amenities", "Crime_Rate", "School_District", "Grocery_Proximity", "Noise_Score", "Features"].includes(col);
                 const value = String(home[col] || '').replace(/"/g, '&quot;');
                 
                 if (isLongText) {
-                    return `<div class="full-width" style="margin-bottom:10px;"><label style="font-size:0.85rem; font-weight:bold;">${col.replace('_', ' ')}</label><br><textarea id="edit-${col}" style="height:80px; width:100%; box-sizing:border-box;">${value}</textarea></div>`;
+                    return `<div class="full-width" style="margin-bottom:10px;"><label style="font-size:0.85rem; font-weight:bold;">${col.replace(/_/g, ' ')}</label><br><textarea id="edit-${col}" style="height:80px; width:100%; box-sizing:border-box;">${value}</textarea></div>`;
                 } else {
-                    return `<div style="margin-bottom:10px;"><label style="font-size:0.85rem; font-weight:bold;">${col.replace('_', ' ')}</label><br><input type="text" id="edit-${col}" value="${value}" style="width:100%; box-sizing:border-box;" /></div>`;
+                    return `<div style="margin-bottom:10px;"><label style="font-size:0.85rem; font-weight:bold;">${col.replace(/_/g, ' ')}</label><br><input type="text" id="edit-${col}" value="${value}" style="width:100%; box-sizing:border-box;" /></div>`;
                 }
             }).join("");
             
@@ -555,7 +559,7 @@
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: metric.replace('_', ' '),
+                        label: metric.replace(/_/g, ' '),
                         data: dataPoints,
                         backgroundColor: barColors,
                         borderWidth: 0,
@@ -588,18 +592,17 @@
                 let lat = h.Latitude;
                 let lon = h.Longitude;
 
-                // FRONTEND GEOCODING FALLBACK: Auto-fix old homes that lack GPS coordinates
                 if (!lat || lat === "N/A") {
                     if (h.Address && h.Address !== "N/A" && h.Address.length > 5) {
                         try {
-                            let cleanAddress = h.Address.split(',')[0] + " " + (h.Address.split(',')[1] || ""); // simplify for nominatim
+                            let cleanAddress = h.Address.split(',')[0] + " " + (h.Address.split(',')[1] || "");
                             let res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cleanAddress)}&limit=1`);
                             let data = await res.json();
                             if (data && data.length > 0) {
                                 lat = parseFloat(data[0].lat);
                                 lon = parseFloat(data[0].lon);
                             }
-                        } catch(e) { console.log("Frontend Geocode failed for", h.Address); }
+                        } catch(e) {}
                     }
                 }
 
@@ -608,7 +611,6 @@
                     let price = h.Price || "N/A";
                     let title = h.Address && h.Address !== "N/A" ? h.Address : `Home ${i+1}`;
                     
-                    // Create Custom Numbered & Colored Marker
                     let customIcon = L.divIcon({
                         className: 'custom-map-icon',
                         html: `<div class="map-marker" style="background-color:${color};">${i+1}</div>`,
@@ -678,7 +680,7 @@
             togglesDiv.innerHTML = "";
             allColumns.forEach(col => {
                 const checked = visibleColumns.includes(col) ? "checked" : "";
-                togglesDiv.innerHTML += `<label><input type="checkbox" onchange="toggleColumn('${col}')" ${checked}> ${col.replace('_', ' ')}</label>`;
+                togglesDiv.innerHTML += `<label><input type="checkbox" onchange="toggleColumn('${col}')" ${checked}> ${col.replace(/_/g, ' ')}</label>`;
             });
 
             const thead = document.getElementById('tableHeader');
@@ -704,7 +706,7 @@
                 let bodyHtml = "";
                 visibleColumns.forEach(col => {
                     bodyHtml += `<tr>`;
-                    bodyHtml += `<th>${col.replace('_', ' ')}</th>`; 
+                    bodyHtml += `<th>${col.replace(/_/g, ' ')}</th>`; 
                     
                     homes.forEach((home, homeIndex) => {
                         carouselState[homeIndex] = 0;
@@ -761,7 +763,7 @@
                 tbody.innerHTML = bodyHtml;
                 
                 updateGlobalChart();
-                updateMap(); // Now triggers the frontend fallback!
+                updateMap(); 
                 setTimeout(drawLineCharts, 50); 
             }
 
