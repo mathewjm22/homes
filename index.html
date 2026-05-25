@@ -14,6 +14,7 @@
         input, textarea, select, button { width: 100%; margin-bottom: 15px; padding: 10px; border: 1px solid var(--border); border-radius: 5px; box-sizing: border-box; font-family: inherit;}
         button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: bold; }
         button:hover { background: #0056b3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
         textarea { height: 150px; resize: vertical; }
 
         /* Main Content */
@@ -35,6 +36,7 @@
         .chat-box { background: var(--bg); padding: 15px; border-radius: 5px; min-height: 100px; margin-top: 15px; white-space: pre-wrap;}
         
         .loader { display: none; font-size: 0.9rem; color: #666; font-style: italic; margin-bottom: 15px;}
+        #globalLoader { display: block; font-size: 1.2rem; margin-bottom: 20px; color: var(--primary); font-weight: bold; }
     </style>
 </head>
 <body>
@@ -43,12 +45,14 @@
         <h2>➕ Add Home</h2>
         <p style="font-size: 0.8rem; color: #666;">Paste Redfin/Zillow text (Ctrl+A -> Ctrl+C -> Paste here):</p>
         <textarea id="rawText"></textarea>
-        <button onclick="extractHome()">Extract & Add Home</button>
-        <div id="sidebarLoader" class="loader">Extracting... this takes a few seconds...</div>
+        <button id="addBtn" onclick="extractHome()">Extract & Add Home</button>
+        <div id="sidebarLoader" class="loader">Extracting & Saving to Cloud...</div>
     </div>
 
     <div class="main">
         <h1>🏡 Home Comparator</h1>
+        <div id="globalLoader">🔄 Loading Database from Cloud...</div>
+        
         <div class="tabs">
             <div class="tab active" onclick="switchTab('tableTab')">📊 Compare Homes</div>
             <div class="tab" onclick="switchTab('chatTab')">💬 Ask Questions</div>
@@ -66,7 +70,8 @@
             <hr>
             <h3>Manage List</h3>
             <select id="deleteSelect"></select>
-            <button onclick="deleteHome()" style="width: auto; background: #dc3545;">Delete Selected Home</button>
+            <button id="deleteBtn" onclick="deleteHome()" style="width: auto; background: #dc3545;">Delete Selected Home</button>
+            <div id="deleteLoader" class="loader">Deleting from Cloud...</div>
         </div>
 
         <div id="chatTab" class="tab-content">
@@ -82,12 +87,22 @@
     <script>
         const WORKER_URL = "https://homes.sweet-dream-0ed6.workers.dev/";
 
-        // Default columns
         const allColumns = ["Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size", "HOA_Fee", "Year_Built", "Heating_Cooling", "Parking", "Pros", "Cons", "Summary"];
         let visibleColumns = ["Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size", "HOA_Fee"];
-        let homes = JSON.parse(localStorage.getItem('saved_homes')) || [];
+        let homes = []; // No more local storage!
 
-        // Tab Switching logic
+        // Load database on startup
+        window.onload = async function() {
+            try {
+                const data = await apiCall({ action: "load" });
+                homes = data.homes;
+                document.getElementById('globalLoader').style.display = 'none';
+                renderTable();
+            } catch (err) {
+                document.getElementById('globalLoader').innerText = "❌ Error loading database: " + err.message;
+            }
+        };
+
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -95,14 +110,12 @@
             event.target.classList.add('active');
         }
 
-        // --- Core Functions ---
         async function apiCall(bodyData) {
             const response = await fetch(WORKER_URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(bodyData)
             });
-
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || "API Request Failed");
             return data;
@@ -113,17 +126,18 @@
             if (!rawText) return alert("Please paste text first.");
 
             document.getElementById('sidebarLoader').style.display = 'block';
+            document.getElementById('addBtn').disabled = true;
             try {
+                // Send text to worker, worker extracts AND saves to Cloud KV, then returns updated list
                 const data = await apiCall({ action: "extract", text: rawText });
-                homes.push(data);
-                localStorage.setItem('saved_homes', JSON.stringify(homes));
+                homes = data.homes; // Update local state with the cloud truth
                 document.getElementById('rawText').value = '';
                 renderTable();
-                alert("Home added successfully!");
             } catch (err) {
                 alert("Error: " + err.message);
             }
             document.getElementById('sidebarLoader').style.display = 'none';
+            document.getElementById('addBtn').disabled = false;
         }
 
         async function askQuestion() {
@@ -133,7 +147,8 @@
             document.getElementById('chatLoader').style.display = 'block';
             document.getElementById('chatOutput').innerText = "";
             try {
-                const data = await apiCall({ action: "chat", question: question, context: homes });
+                // We no longer need to send 'homes' as context! The worker reads it directly from the Cloud DB.
+                const data = await apiCall({ action: "chat", question: question });
                 document.getElementById('chatOutput').innerText = data.answer;
             } catch (err) {
                 document.getElementById('chatOutput').innerText = "Error: " + err.message;
@@ -141,12 +156,21 @@
             document.getElementById('chatLoader').style.display = 'none';
         }
 
-        function deleteHome() {
+        async function deleteHome() {
             const index = document.getElementById('deleteSelect').value;
             if (index === "") return;
-            homes.splice(index, 1);
-            localStorage.setItem('saved_homes', JSON.stringify(homes));
-            renderTable();
+
+            document.getElementById('deleteLoader').style.display = 'block';
+            document.getElementById('deleteBtn').disabled = true;
+            try {
+                const data = await apiCall({ action: "delete", index: parseInt(index) });
+                homes = data.homes; // Update list from cloud
+                renderTable();
+            } catch (err) {
+                alert("Error deleting home: " + err.message);
+            }
+            document.getElementById('deleteLoader').style.display = 'none';
+            document.getElementById('deleteBtn').disabled = false;
         }
 
         // --- UI Rendering ---
@@ -155,14 +179,12 @@
                 visibleColumns = visibleColumns.filter(c => c !== col);
             } else {
                 visibleColumns.push(col);
-                // Keep original sorting order
                 visibleColumns.sort((a, b) => allColumns.indexOf(a) - allColumns.indexOf(b)); 
             }
             renderTable();
         }
 
         function renderTable() {
-            // Render Toggles
             const togglesDiv = document.getElementById('columnToggles');
             togglesDiv.innerHTML = "";
             allColumns.forEach(col => {
@@ -170,24 +192,22 @@
                 togglesDiv.innerHTML += `<label><input type="checkbox" onchange="toggleColumn('${col}')" ${checked}> ${col}</label>`;
             });
 
-            // Render Table Header
             const thead = document.getElementById('tableHeader');
             thead.innerHTML = visibleColumns.map(col => `<th>${col}</th>`).join("");
 
-            // Render Table Body
             const tbody = document.getElementById('tableBody');
-            tbody.innerHTML = homes.map(home => {
-                return `<tr>${visibleColumns.map(col => `<td>${home[col] || "N/A"}</td>`).join("")}</tr>`;
-            }).join("");
+            if (homes.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${visibleColumns.length}" style="text-align:center;">No homes saved yet. Add one from the sidebar!</td></tr>`;
+            } else {
+                tbody.innerHTML = homes.map(home => {
+                    return `<tr>${visibleColumns.map(col => `<td>${home[col] || "N/A"}</td>`).join("")}</tr>`;
+                }).join("");
+            }
 
-            // Render Delete Select
             const deleteSelect = document.getElementById('deleteSelect');
             deleteSelect.innerHTML = `<option value="">Select a home to remove...</option>` + 
-                homes.map((h, i) => `<option value="${i}">${h.Address}</option>`).join("");
+                homes.map((h, i) => `<option value="${i}">${h.Address || "Unnamed Home"}</option>`).join("");
         }
-
-        // Init
-        renderTable();
     </script>
 </body>
 </html>
