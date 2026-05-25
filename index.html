@@ -8,7 +8,7 @@
         :root { --bg: #f8f9fa; --primary: #007bff; --border: #dee2e6; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 0; display: flex; height: 100vh; background: var(--bg); }
         
-        .sidebar { width: 300px; background: white; padding: 20px; border-right: 1px solid var(--border); overflow-y: auto; box-sizing: border-box;}
+        .sidebar { width: 300px; background: white; padding: 20px; border-right: 1px solid var(--border); overflow-y: auto; box-sizing: border-box; flex-shrink: 0;}
         .sidebar h2 { font-size: 1.2rem; margin-top: 0; }
         input, select, button { width: 100%; margin-bottom: 15px; padding: 10px; border: 1px solid var(--border); border-radius: 5px; box-sizing: border-box; font-family: inherit;}
         button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: bold; }
@@ -19,7 +19,7 @@
         .rich-text-box { height: 150px; overflow-y: auto; border: 1px solid var(--border); border-radius: 5px; padding: 10px; margin-bottom: 15px; background: #fff; font-size: 0.8rem; }
         .rich-text-box:empty:before { content: attr(placeholder); color: #999; }
 
-        .main { flex: 1; padding: 20px; overflow-y: auto; position: relative;}
+        .main { flex: 1; padding: 20px; overflow-y: auto; position: relative; overflow-x: hidden; }
         .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid var(--border); }
         .tab { padding: 10px 20px; cursor: pointer; color: #666; font-weight: bold; }
         .tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); margin-bottom: -2px; }
@@ -28,26 +28,31 @@
         
         .table-controls { margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;}
         .table-controls label { background: var(--bg); padding: 5px 10px; border-radius: 5px; border: 1px solid var(--border); font-size: 0.9rem; cursor: pointer;}
-        table { width: 100%; border-collapse: collapse; margin-bottom: 20px;}
-        th, td { border: 1px solid var(--border); padding: 12px; text-align: left; vertical-align: top;}
-        th { background: var(--bg); }
         
-        .ai-row { display: none; background: #eef5ff; border-left: 4px solid var(--primary); }
-        .ai-content { padding: 15px 20px; font-size: 0.95rem; color: #333; }
-        .ai-content p { margin-top: 0; }
+        /* TRANSPOSED TABLE CSS */
+        .table-wrapper { overflow-x: auto; max-width: 100%; border: 1px solid var(--border); border-radius: 8px;}
+        table { width: 100%; border-collapse: collapse; min-width: 800px;}
+        th, td { border: 1px solid var(--border); padding: 15px 12px; text-align: left; vertical-align: top; }
+        /* First column (Attributes) is sticky and styled differently */
+        th:first-child { background: #e9ecef; position: sticky; left: 0; z-index: 10; width: 130px; font-weight: 800; border-right: 2px solid #ccc;}
+        /* Home Columns are wide enough to read side-by-side */
+        th:not(:first-child), td { min-width: 250px; max-width: 350px; }
+        thead th { background: var(--bg); font-size: 1.1rem; color: var(--primary); }
         
         /* Action Buttons */
-        .action-btns { display: flex; flex-direction: column; gap: 5px; }
+        .action-btns { display: flex; gap: 10px; }
         .ai-btn { background: #28a745; margin-bottom: 0; width: 100%; padding: 8px;}
         .ai-btn:hover { background: #218838; }
         .edit-btn { background: #ffc107; color: black; margin-bottom: 0; width: 100%; padding: 8px;}
         .edit-btn:hover { background: #e0a800; }
+        .ai-content { padding-top: 15px; font-size: 0.9rem; color: #333; }
+        .ai-content p { margin-top: 0; }
 
         /* CAROUSEL */
-        .carousel { position: relative; width: 160px; height: 110px; border-radius: 8px; background: #eee; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .carousel { position: relative; width: 100%; height: 160px; border-radius: 8px; background: #eee; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .carousel-img { width: 100%; height: 100%; object-fit: cover; display: none; }
         .carousel-img.active { display: block; }
-        .carousel-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6) !important; color: white !important; border: none; padding: 4px 8px; cursor: pointer; border-radius: 50%; font-size: 10px; width: auto; margin: 0; z-index: 2;}
+        .carousel-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6) !important; color: white !important; border: none; padding: 8px 12px; cursor: pointer; border-radius: 50%; font-size: 14px; width: auto; margin: 0; z-index: 2;}
         .carousel-btn:hover { background: rgba(0,0,0,0.9) !important; }
         .carousel-btn.left { left: 5px; }
         .carousel-btn.right { right: 5px; }
@@ -70,7 +75,6 @@
         .edit-img-container { position: relative; width: 120px; flex-shrink: 0; }
         .edit-img-thumbnail { width: 120px; height: 90px; object-fit: cover; border-radius: 5px; border: 1px solid #ccc; }
         .delete-img-cb { position: absolute; top: 5px; right: 5px; width: 22px; height: 22px; cursor: pointer; box-shadow: 0 0 5px rgba(0,0,0,0.5); accent-color: red;}
-        .delete-overlay-text { position: absolute; bottom: 5px; left: 5px; background: rgba(0,0,0,0.7); color: white; font-size: 0.7rem; padding: 2px 5px; border-radius: 3px; pointer-events: none;}
     </style>
 </head>
 <body>
@@ -86,6 +90,12 @@
         <div id="rawContent" class="rich-text-box" contenteditable="true" placeholder="Paste rich text or images here..."></div>
         <button id="submitBtn" onclick="processEntry()">Extract & Add Home</button>
         <div id="sidebarLoader" class="loader">Processing to Cloud...</div>
+        
+        <hr>
+        <h3>Remove from List</h3>
+        <select id="deleteSelect"></select>
+        <button id="deleteBtn" onclick="deleteHome()" style="background: #dc3545;">Delete Selected Home</button>
+        <div id="deleteLoader" class="loader">Deleting from Cloud...</div>
     </div>
 
     <div class="main">
@@ -98,19 +108,15 @@
         </div>
 
         <div id="tableTab" class="tab-content active">
-            <h3>Filter Columns</h3>
+            <h3>Filter Attributes (Rows)</h3>
             <div class="table-controls" id="columnToggles"></div>
-            <div style="overflow-x: auto;">
+            
+            <div class="table-wrapper">
                 <table id="homeTable">
-                    <thead><tr id="tableHeader"></tr></thead>
+                    <thead id="tableHeader"></thead>
                     <tbody id="tableBody"></tbody>
                 </table>
             </div>
-            <hr>
-            <h3>Remove from List</h3>
-            <select id="deleteSelect"></select>
-            <button id="deleteBtn" onclick="deleteHome()" style="width: auto; background: #dc3545;">Delete Selected Home</button>
-            <div id="deleteLoader" class="loader">Deleting from Cloud...</div>
         </div>
 
         <div id="chatTab" class="tab-content">
@@ -137,10 +143,10 @@
 
     <script>
         // PUT YOUR WORKER URL HERE
-        const WORKER_URL = "https://homes-api.YOUR-NAME.workers.dev/";
+        const WORKER_URL = "https://homes-api.sweet-dream-0ed6.workers.dev/";
 
         const allColumns = ["Images", "Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size", "HOA_Fee", "Year_Built", "Heating_Cooling", "Parking", "Pros", "Cons", "Summary"];
-        let visibleColumns = ["Images", "Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size"];
+        let visibleColumns = ["Images", "Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size", "HOA_Fee", "Pros", "Cons"];
         let homes = [];
         let carouselState = {}; 
         let editingIndex = null; 
@@ -194,24 +200,24 @@
             return data;
         }
 
+        // --- UPDATED AI COMPARISON LOGIC ---
         async function runComparison(index) {
             if (homes.length < 2) return alert("You need at least 2 homes to generate a comparison.");
-            const row = document.getElementById(`ai-row-${index}`);
             const content = document.getElementById(`ai-content-${index}`);
             const btn = document.getElementById(`ai-btn-${index}`);
 
-            if (row.style.display === "table-row" && !content.innerHTML.includes("Loading")) {
-                row.style.display = "none"; btn.innerText = "⚖️ Compare"; return;
+            if (content.style.display === "block" && !content.innerHTML.includes("Analyzing")) {
+                content.style.display = "none"; btn.innerText = "⚖️ Compare to Others"; return;
             }
 
-            row.style.display = "table-row";
-            content.innerHTML = "<em>Analyzing database and comparing homes... 🤖</em>";
+            content.style.display = "block";
+            content.innerHTML = "<em>Analyzing database and comparing to other homes... 🤖</em>";
             btn.disabled = true;
 
             try {
                 const data = await apiCall({ action: "compare_home", index: index });
                 content.innerHTML = data.analysis; 
-                btn.innerText = "Close Analysis";
+                btn.innerText = "Hide Analysis";
             } catch(err) { content.innerHTML = `<span style="color:red">Error: ${err.message}</span>`; }
             btn.disabled = false;
         }
@@ -246,12 +252,10 @@
             document.getElementById('submitBtn').disabled = false;
         }
 
-        // --- MANUAL EDIT LOGIC ---
         function openEditModal(index) {
             editingIndex = index;
             const home = homes[index];
             
-            // 1. Generate Photo Manager UI
             let imgs = home.Images || [];
             if(imgs.length === 0 && home.Image && home.Image !== "N/A") imgs = [home.Image];
             
@@ -272,21 +276,13 @@
                 </div>`;
             }
 
-            // 2. Generate Text Fields
             const textFieldsHtml = allColumns.filter(c => c !== 'Images').map(col => {
                 const isLongText = ["Pros", "Cons", "Summary"].includes(col);
                 const value = (home[col] || '').replace(/"/g, '&quot;');
-                
                 if (isLongText) {
-                    return `<div class="full-width" style="margin-bottom:10px;">
-                        <label style="font-size:0.8rem; font-weight:bold;">${col}</label><br>
-                        <textarea id="edit-${col}" style="height:60px;">${value}</textarea>
-                    </div>`;
+                    return `<div class="full-width" style="margin-bottom:10px;"><label style="font-size:0.8rem; font-weight:bold;">${col}</label><br><textarea id="edit-${col}" style="height:60px;">${value}</textarea></div>`;
                 } else {
-                    return `<div style="margin-bottom:10px;">
-                        <label style="font-size:0.8rem; font-weight:bold;">${col}</label><br>
-                        <input type="text" id="edit-${col}" value="${value}" />
-                    </div>`;
+                    return `<div style="margin-bottom:10px;"><label style="font-size:0.8rem; font-weight:bold;">${col}</label><br><input type="text" id="edit-${col}" value="${value}" /></div>`;
                 }
             }).join("");
             
@@ -302,38 +298,28 @@
         async function saveManualEdit() {
             document.getElementById('modalLoader').style.display = 'block';
             document.getElementById('saveEditBtn').disabled = true;
-
             try {
                 const updatedHome = { ...homes[editingIndex] };
-                
-                // 1. Process Image Deletions
                 const checkboxes = document.querySelectorAll('.delete-img-cb');
                 const indicesToRemove = Array.from(checkboxes).filter(cb => cb.checked).map(cb => parseInt(cb.value));
                 
                 let currentImgs = updatedHome.Images || [];
-                if(currentImgs.length === 0 && updatedHome.Image && updatedHome.Image !== "N/A") {
-                    currentImgs = [updatedHome.Image];
-                }
-                
+                if(currentImgs.length === 0 && updatedHome.Image && updatedHome.Image !== "N/A") currentImgs = [updatedHome.Image];
                 updatedHome.Images = currentImgs.filter((_, i) => !indicesToRemove.includes(i));
-                updatedHome.Image = "N/A"; // Clean up legacy single image string
+                updatedHome.Image = "N/A"; 
 
-                // 2. Process Text Field Updates
                 allColumns.filter(c => c !== 'Images').forEach(col => {
                     updatedHome[col] = document.getElementById(`edit-${col}`).value;
                 });
 
-                // 3. Send to Server
                 const data = await apiCall({ action: "manual_edit", index: editingIndex, homeData: updatedHome });
                 homes = data.homes;
                 renderTable();
                 closeModal();
             } catch (err) { alert("Error saving edits: " + err.message); }
-
             document.getElementById('modalLoader').style.display = 'none';
             document.getElementById('saveEditBtn').disabled = false;
         }
-        // -------------------------
 
         async function deleteHome() {
             const index = document.getElementById('deleteSelect').value;
@@ -368,6 +354,7 @@
             if(counter) counter.innerText = `${current + 1} / ${max}`;
         }
 
+        // --- TRANSPOSED RENDER LOGIC ---
         function renderTable() {
             const togglesDiv = document.getElementById('columnToggles');
             togglesDiv.innerHTML = "";
@@ -377,18 +364,30 @@
             });
 
             const thead = document.getElementById('tableHeader');
-            thead.innerHTML = visibleColumns.map(col => `<th>${col}</th>`).join("") + `<th>Actions</th>`;
-
             const tbody = document.getElementById('tableBody');
             carouselState = {}; 
 
             if (homes.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="${visibleColumns.length + 1}" style="text-align:center;">No homes saved yet. Add one from the sidebar!</td></tr>`;
+                thead.innerHTML = `<tr><th>Attributes</th><th>No Data</th></tr>`;
+                tbody.innerHTML = `<tr><td colspan="2" style="text-align:center;">No homes saved yet. Add one from the sidebar!</td></tr>`;
             } else {
-                tbody.innerHTML = homes.map((home, homeIndex) => {
-                    carouselState[homeIndex] = 0; 
+                // 1. Build Header Row (Attributes + Home Addresses)
+                let headerHtml = `<tr><th>Attributes</th>`;
+                homes.forEach((home, i) => {
+                    let title = (home.Address && home.Address !== "N/A") ? home.Address : `Home ${i+1}`;
+                    headerHtml += `<th>${title}</th>`;
+                });
+                headerHtml += `</tr>`;
+                thead.innerHTML = headerHtml;
+
+                // 2. Build Body Rows (One row per Variable)
+                let bodyHtml = "";
+                visibleColumns.forEach(col => {
+                    bodyHtml += `<tr>`;
+                    bodyHtml += `<th>${col}</th>`; // Sticky left column
                     
-                    let columnsHtml = visibleColumns.map(col => {
+                    homes.forEach((home, homeIndex) => {
+                        carouselState[homeIndex] = 0;
                         if (col === "Images") {
                             let imgs = home.Images || (home.Image && home.Image !== "N/A" ? [home.Image] : []);
                             if (imgs.length > 0) {
@@ -403,30 +402,37 @@
                                                      <div class="carousel-counter" id="counter-${homeIndex}">1 / ${imgs.length}</div>`;
                                 }
                                 carouselHtml += `</div>`;
-                                return `<td>${carouselHtml}</td>`;
-                            } else return `<td><div class="carousel" style="display:flex; align-items:center; justify-content:center; color:#999; font-size: 0.8rem;">No Images</div></td>`;
+                                bodyHtml += `<td>${carouselHtml}</td>`;
+                            } else bodyHtml += `<td><div class="carousel" style="display:flex; align-items:center; justify-content:center; color:#999; font-size: 0.8rem;">No Images</div></td>`;
+                        } else {
+                            bodyHtml += `<td>${home[col] || "N/A"}</td>`;
                         }
-                        return `<td>${home[col] || "N/A"}</td>`;
-                    }).join("");
+                    });
+                    bodyHtml += `</tr>`;
+                });
 
-                    columnsHtml += `<td>
-                        <div class="action-btns">
-                            <button id="ai-btn-${homeIndex}" class="ai-btn" onclick="runComparison(${homeIndex})">⚖️ Compare</button>
-                            <button class="edit-btn" onclick="openEditModal(${homeIndex})">✏️ Edit</button>
-                        </div>
+                // 3. Build Edit Actions Row
+                bodyHtml += `<tr><th>Actions</th>`;
+                homes.forEach((home, homeIndex) => {
+                    bodyHtml += `<td><button class="edit-btn" onclick="openEditModal(${homeIndex})">✏️ Edit Details & Photos</button></td>`;
+                });
+                bodyHtml += `</tr>`;
+
+                // 4. Build AI Comparison Row
+                bodyHtml += `<tr><th style="background:#eef5ff; color:var(--primary);">AI Insights</th>`;
+                homes.forEach((home, homeIndex) => {
+                    bodyHtml += `<td style="background:#eef5ff;">
+                        <button id="ai-btn-${homeIndex}" class="ai-btn" onclick="runComparison(${homeIndex})">⚖️ Compare to Others</button>
+                        <div id="ai-content-${homeIndex}" class="ai-content" style="display:none;"></div>
                     </td>`;
-                    
-                    let aiRow = `<tr id="ai-row-${homeIndex}" class="ai-row">
-                                    <td colspan="${visibleColumns.length + 1}">
-                                        <div id="ai-content-${homeIndex}" class="ai-content"></div>
-                                    </td>
-                                 </tr>`;
+                });
+                bodyHtml += `</tr>`;
 
-                    return `<tr>${columnsHtml}</tr>` + aiRow;
-                }).join("");
+                tbody.innerHTML = bodyHtml;
             }
 
-            const dropdownHTML = `<option value="">Select a home...</option>` + homes.map((h, i) => `<option value="${i}">${h.Address || "Unnamed Home"}</option>`).join("");
+            // Update Dropdowns
+            const dropdownHTML = `<option value="">Select a home...</option>` + homes.map((h, i) => `<option value="${i}">${h.Address || "Unnamed Home " + (i+1)}</option>`).join("");
             document.getElementById('deleteSelect').innerHTML = dropdownHTML;
             document.getElementById('updateSelect').innerHTML = dropdownHTML;
         }
