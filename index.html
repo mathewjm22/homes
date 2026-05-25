@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Home Comparison Tool</title>
+    <style>
+        :root { --bg: #f8f9fa; --primary: #007bff; --border: #dee2e6; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 0; display: flex; height: 100vh; background: var(--bg); }
+        
+        /* Sidebar */
+        .sidebar { width: 300px; background: white; padding: 20px; border-right: 1px solid var(--border); overflow-y: auto; box-sizing: border-box;}
+        .sidebar h2 { font-size: 1.2rem; margin-top: 0; }
+        input, textarea, select, button { width: 100%; margin-bottom: 15px; padding: 10px; border: 1px solid var(--border); border-radius: 5px; box-sizing: border-box; font-family: inherit;}
+        button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background: #0056b3; }
+        textarea { height: 150px; resize: vertical; }
+
+        /* Main Content */
+        .main { flex: 1; padding: 20px; overflow-y: auto; }
+        .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid var(--border); }
+        .tab { padding: 10px 20px; cursor: pointer; color: #666; font-weight: bold; }
+        .tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); margin-bottom: -2px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; background: white; padding: 20px; border-radius: 8px; border: 1px solid var(--border);}
+        
+        /* Table */
+        .table-controls { margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;}
+        .table-controls label { background: var(--bg); padding: 5px 10px; border-radius: 5px; border: 1px solid var(--border); font-size: 0.9rem; cursor: pointer;}
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px;}
+        th, td { border: 1px solid var(--border); padding: 12px; text-align: left; }
+        th { background: var(--bg); }
+        
+        /* Chat */
+        .chat-box { background: var(--bg); padding: 15px; border-radius: 5px; min-height: 100px; margin-top: 15px; white-space: pre-wrap;}
+        
+        .loader { display: none; font-size: 0.9rem; color: #666; font-style: italic; margin-bottom: 15px;}
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>⚙️ Settings</h2>
+        <input type="text" id="workerUrl" placeholder="Cloudflare Worker URL">
+        <input type="password" id="appPassword" placeholder="App Password">
+        <hr style="border:0; border-top:1px solid #ccc; margin: 20px 0;">
+        
+        <h2>➕ Add Home</h2>
+        <p style="font-size: 0.8rem; color: #666;">Paste Redfin/Zillow text (Ctrl+A -> Ctrl+C -> Paste here):</p>
+        <textarea id="rawText"></textarea>
+        <button onclick="extractHome()">Extract & Add Home</button>
+        <div id="sidebarLoader" class="loader">Extracting... this takes a few seconds...</div>
+    </div>
+
+    <div class="main">
+        <h1>🏡 Home Comparator</h1>
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('tableTab')">📊 Compare Homes</div>
+            <div class="tab" onclick="switchTab('chatTab')">💬 Ask Questions</div>
+        </div>
+
+        <div id="tableTab" class="tab-content active">
+            <h3>Filter Columns</h3>
+            <div class="table-controls" id="columnToggles"></div>
+            <div style="overflow-x: auto;">
+                <table id="homeTable">
+                    <thead><tr id="tableHeader"></tr></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+            <hr>
+            <h3>Manage List</h3>
+            <select id="deleteSelect"></select>
+            <button onclick="deleteHome()" style="width: auto; background: #dc3545;">Delete Selected Home</button>
+        </div>
+
+        <div id="chatTab" class="tab-content">
+            <h3>Chat with your Listings</h3>
+            <p>Example: <i>"Which house has the lowest HOA?"</i></p>
+            <input type="text" id="chatInput" placeholder="Ask a question...">
+            <button onclick="askQuestion()">Ask</button>
+            <div id="chatLoader" class="loader">Thinking...</div>
+            <div class="chat-box" id="chatOutput">Your answer will appear here.</div>
+        </div>
+    </div>
+
+    <script>
+        // Default columns
+        const allColumns = ["Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size", "HOA_Fee", "Year_Built", "Heating_Cooling", "Parking", "Pros", "Cons", "Summary"];
+        let visibleColumns = ["Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size", "HOA_Fee"];
+        let homes = JSON.parse(localStorage.getItem('saved_homes')) || [];
+
+        // Tab Switching logic
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // --- Core Functions ---
+        
+        async function apiCall(bodyData) {
+            const workerUrl = document.getElementById('workerUrl').value;
+            const appPassword = document.getElementById('appPassword').value;
+            
+            if (!workerUrl || !appPassword) throw new Error("Missing Worker URL or Password in settings.");
+            
+            bodyData.app_password = appPassword;
+
+            const response = await fetch(workerUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(bodyData)
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "API Request Failed");
+            return data;
+        }
+
+        async function extractHome() {
+            const rawText = document.getElementById('rawText').value;
+            if (!rawText) return alert("Please paste text first.");
+
+            document.getElementById('sidebarLoader').style.display = 'block';
+            try {
+                const data = await apiCall({ action: "extract", text: rawText });
+                homes.push(data);
+                localStorage.setItem('saved_homes', JSON.stringify(homes));
+                document.getElementById('rawText').value = '';
+                renderTable();
+                alert("Home added successfully!");
+            } catch (err) {
+                alert("Error: " + err.message);
+            }
+            document.getElementById('sidebarLoader').style.display = 'none';
+        }
+
+        async function askQuestion() {
+            const question = document.getElementById('chatInput').value;
+            if (!question) return;
+
+            document.getElementById('chatLoader').style.display = 'block';
+            document.getElementById('chatOutput').innerText = "";
+            try {
+                const data = await apiCall({ action: "chat", question: question, context: homes });
+                document.getElementById('chatOutput').innerText = data.answer;
+            } catch (err) {
+                document.getElementById('chatOutput').innerText = "Error: " + err.message;
+            }
+            document.getElementById('chatLoader').style.display = 'none';
+        }
+
+        function deleteHome() {
+            const index = document.getElementById('deleteSelect').value;
+            if (index === "") return;
+            homes.splice(index, 1);
+            localStorage.setItem('saved_homes', JSON.stringify(homes));
+            renderTable();
+        }
+
+        // --- UI Rendering ---
+
+        function toggleColumn(col) {
+            if (visibleColumns.includes(col)) {
+                visibleColumns = visibleColumns.filter(c => c !== col);
+            } else {
+                visibleColumns.push(col);
+                // Keep original sorting order
+                visibleColumns.sort((a, b) => allColumns.indexOf(a) - allColumns.indexOf(b)); 
+            }
+            renderTable();
+        }
+
+        function renderTable() {
+            // Render Toggles
+            const togglesDiv = document.getElementById('columnToggles');
+            togglesDiv.innerHTML = "";
+            allColumns.forEach(col => {
+                const checked = visibleColumns.includes(col) ? "checked" : "";
+                togglesDiv.innerHTML += `<label><input type="checkbox" onchange="toggleColumn('${col}')" ${checked}> ${col}</label>`;
+            });
+
+            // Render Table Header
+            const thead = document.getElementById('tableHeader');
+            thead.innerHTML = visibleColumns.map(col => `<th>${col}</th>`).join("");
+
+            // Render Table Body
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = homes.map(home => {
+                return `<tr>${visibleColumns.map(col => `<td>${home[col] || "N/A"}</td>`).join("")}</tr>`;
+            }).join("");
+
+            // Render Delete Select
+            const deleteSelect = document.getElementById('deleteSelect');
+            deleteSelect.innerHTML = `<option value="">Select a home to remove...</option>` + 
+                homes.map((h, i) => `<option value="${i}">${h.Address}</option>`).join("");
+        }
+
+        // Init
+        renderTable();
+    </script>
+</body>
+</html>
