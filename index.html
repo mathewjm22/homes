@@ -16,7 +16,6 @@
         button:hover { background: #0056b3; }
         button:disabled { background: #ccc; cursor: not-allowed; }
         
-        /* Rich Text Editor for pasting */
         .rich-text-box { height: 150px; overflow-y: auto; border: 1px solid var(--border); border-radius: 5px; padding: 10px; margin-bottom: 15px; background: #fff; font-size: 0.8rem; }
         .rich-text-box:empty:before { content: attr(placeholder); color: #999; }
 
@@ -34,11 +33,19 @@
         table { width: 100%; border-collapse: collapse; margin-bottom: 20px;}
         th, td { border: 1px solid var(--border); padding: 12px; text-align: left; vertical-align: top;}
         th { background: var(--bg); }
-        .home-thumbnail { width: 120px; height: 90px; object-fit: cover; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         
-        /* Chat */
+        /* CAROUSEL STYLES */
+        .carousel { position: relative; width: 160px; height: 110px; border-radius: 8px; background: #eee; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .carousel-img { width: 100%; height: 100%; object-fit: cover; display: none; }
+        .carousel-img.active { display: block; }
+        .carousel-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6) !important; color: white !important; border: none; padding: 4px 8px; cursor: pointer; border-radius: 50%; font-size: 10px; width: auto; margin: 0; z-index: 2;}
+        .carousel-btn:hover { background: rgba(0,0,0,0.9) !important; }
+        .carousel-btn.left { left: 5px; }
+        .carousel-btn.right { right: 5px; }
+        .carousel-counter { position: absolute; bottom: 5px; right: 5px; background: rgba(0,0,0,0.7); color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; z-index: 2; pointer-events: none;}
+        
+        /* Chat & Loaders */
         .chat-box { background: var(--bg); padding: 15px; border-radius: 5px; min-height: 100px; margin-top: 15px; white-space: pre-wrap;}
-        
         .loader { display: none; font-size: 0.9rem; color: #666; font-style: italic; margin-bottom: 15px;}
         #globalLoader { display: block; font-size: 1.2rem; margin-bottom: 20px; color: var(--primary); font-weight: bold; }
     </style>
@@ -48,10 +55,7 @@
     <div class="sidebar">
         <h2>➕ Add Home</h2>
         <p style="font-size: 0.8rem; color: #666;">Paste Redfin/Zillow text (Ctrl+A -> Ctrl+C -> Paste below):</p>
-        
-        <!-- Changed to a Content Editable DIV so images paste successfully -->
         <div id="rawContent" class="rich-text-box" contenteditable="true" placeholder="Paste rich text here..."></div>
-        
         <button id="addBtn" onclick="extractHome()">Extract & Add Home</button>
         <div id="sidebarLoader" class="loader">Extracting & Saving to Cloud...</div>
     </div>
@@ -94,10 +98,10 @@
     <script>
         const WORKER_URL = "https://homes.sweet-dream-0ed6.workers.dev/";
 
-        // Added Image to the start of the columns!
-        const allColumns = ["Image", "Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size", "HOA_Fee", "Year_Built", "Heating_Cooling", "Parking", "Pros", "Cons", "Summary"];
-        let visibleColumns = ["Image", "Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size"];
+        const allColumns = ["Images", "Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size", "HOA_Fee", "Year_Built", "Heating_Cooling", "Parking", "Pros", "Cons", "Summary"];
+        let visibleColumns = ["Images", "Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size"];
         let homes = [];
+        let carouselState = {}; // Keeps track of which image is showing for each home
 
         window.onload = async function() {
             try {
@@ -130,7 +134,6 @@
 
         async function extractHome() {
             const container = document.getElementById('rawContent');
-            const rawHTML = container.innerHTML;
             const plainText = container.innerText;
 
             if (!plainText.trim()) return alert("Please paste content first.");
@@ -139,22 +142,23 @@
             document.getElementById('addBtn').disabled = true;
             
             try {
-                // Find the first good image URL in the pasted HTML
-                let imageUrl = "N/A";
+                // Find up to 15 valid images in the pasted HTML
+                let imageUrls = [];
                 const images = container.querySelectorAll('img');
                 for (let img of images) {
                     let src = img.getAttribute('src') || img.src;
-                    // Ignore tiny icons or blank base64 data images
-                    if (src && !src.startsWith('data:image') && src.includes('http')) {
-                        imageUrl = src;
-                        break;
+                    if (src && src.startsWith('http') && !src.includes('base64')) {
+                        // Prevent duplicates
+                        if (!imageUrls.includes(src)) imageUrls.push(src);
                     }
                 }
+                
+                // Cap at 15 images to prevent database bloat
+                imageUrls = imageUrls.slice(0, 15);
 
-                // Send text AND image URL to worker
-                const data = await apiCall({ action: "extract", text: plainText, imageUrl: imageUrl });
+                const data = await apiCall({ action: "extract", text: plainText, imageUrls: imageUrls });
                 homes = data.homes; 
-                container.innerHTML = ''; // Clear box
+                container.innerHTML = ''; 
                 renderTable();
             } catch (err) {
                 alert("Error: " + err.message);
@@ -206,6 +210,31 @@
             renderTable();
         }
 
+        // CAROUSEL LOGIC
+        function changeSlide(homeIndex, direction) {
+            // Unify image array logic (supports old 1-image saves and new multi-image saves)
+            let imgs = homes[homeIndex].Images || (homes[homeIndex].Image && homes[homeIndex].Image !== "N/A" ? [homes[homeIndex].Image] : []);
+            let max = imgs.length;
+            
+            let current = carouselState[homeIndex] || 0;
+            
+            // Hide current image
+            document.getElementById(`img-${homeIndex}-${current}`).classList.remove('active');
+            
+            // Calculate new index
+            current += direction;
+            if (current < 0) current = max - 1;
+            if (current >= max) current = 0;
+            
+            // Show new image and update state
+            document.getElementById(`img-${homeIndex}-${current}`).classList.add('active');
+            carouselState[homeIndex] = current;
+            
+            // Update counter text
+            let counter = document.getElementById(`counter-${homeIndex}`);
+            if(counter) counter.innerText = `${current + 1} / ${max}`;
+        }
+
         function renderTable() {
             const togglesDiv = document.getElementById('columnToggles');
             togglesDiv.innerHTML = "";
@@ -218,19 +247,44 @@
             thead.innerHTML = visibleColumns.map(col => `<th>${col}</th>`).join("");
 
             const tbody = document.getElementById('tableBody');
+            carouselState = {}; // Reset state on render
+
             if (homes.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="${visibleColumns.length}" style="text-align:center;">No homes saved yet. Add one from the sidebar!</td></tr>`;
             } else {
-                tbody.innerHTML = homes.map(home => {
+                tbody.innerHTML = homes.map((home, homeIndex) => {
+                    carouselState[homeIndex] = 0; // Initialize slide index to 0 for each home
+
                     return `<tr>${visibleColumns.map(col => {
-                        // SPECIAL LOGIC: IF COLUMN IS IMAGE, RENDER AN IMG TAG!
-                        if (col === "Image") {
-                            if (home[col] && home[col] !== "N/A") {
-                                return `<td><img src="${home[col]}" class="home-thumbnail" alt="Home"></td>`;
+                        
+                        if (col === "Images") {
+                            // Backwards compatibility check
+                            let imgs = home.Images || (home.Image && home.Image !== "N/A" ? [home.Image] : []);
+                            
+                            if (imgs.length > 0) {
+                                let carouselHtml = `<div class="carousel">`;
+                                
+                                // Add all images
+                                imgs.forEach((src, imgIndex) => {
+                                    let activeClass = imgIndex === 0 ? "active" : "";
+                                    carouselHtml += `<img src="${src}" id="img-${homeIndex}-${imgIndex}" class="carousel-img ${activeClass}" alt="Home">`;
+                                });
+
+                                // Add controls if there's more than 1 image
+                                if (imgs.length > 1) {
+                                    carouselHtml += `
+                                        <button class="carousel-btn left" onclick="changeSlide(${homeIndex}, -1)">&#10094;</button>
+                                        <button class="carousel-btn right" onclick="changeSlide(${homeIndex}, 1)">&#10095;</button>
+                                        <div class="carousel-counter" id="counter-${homeIndex}">1 / ${imgs.length}</div>
+                                    `;
+                                }
+                                carouselHtml += `</div>`;
+                                return `<td>${carouselHtml}</td>`;
                             } else {
-                                return `<td>No Image</td>`;
+                                return `<td><div class="carousel" style="display:flex; align-items:center; justify-content:center; color:#999; font-size: 0.8rem;">No Image</div></td>`;
                             }
                         }
+                        
                         return `<td>${home[col] || "N/A"}</td>`;
                     }).join("")}</tr>`;
                 }).join("");
