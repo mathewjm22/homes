@@ -19,7 +19,7 @@
         .rich-text-box { height: 150px; overflow-y: auto; border: 1px solid var(--border); border-radius: 5px; padding: 10px; margin-bottom: 15px; background: #fff; font-size: 0.8rem; }
         .rich-text-box:empty:before { content: attr(placeholder); color: #999; }
 
-        .main { flex: 1; padding: 20px; overflow-y: auto; }
+        .main { flex: 1; padding: 20px; overflow-y: auto; position: relative;}
         .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid var(--border); }
         .tab { padding: 10px 20px; cursor: pointer; color: #666; font-weight: bold; }
         .tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); margin-bottom: -2px; }
@@ -32,12 +32,16 @@
         th, td { border: 1px solid var(--border); padding: 12px; text-align: left; vertical-align: top;}
         th { background: var(--bg); }
         
-        /* Expandable AI Row Styles */
         .ai-row { display: none; background: #eef5ff; border-left: 4px solid var(--primary); }
         .ai-content { padding: 15px 20px; font-size: 0.95rem; color: #333; }
         .ai-content p { margin-top: 0; }
+        
+        /* Action Buttons */
+        .action-btns { display: flex; flex-direction: column; gap: 5px; }
         .ai-btn { background: #28a745; margin-bottom: 0; width: 100%; padding: 8px;}
         .ai-btn:hover { background: #218838; }
+        .edit-btn { background: #ffc107; color: black; margin-bottom: 0; width: 100%; padding: 8px;}
+        .edit-btn:hover { background: #e0a800; }
 
         /* CAROUSEL */
         .carousel { position: relative; width: 160px; height: 110px; border-radius: 8px; background: #eee; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
@@ -52,6 +56,14 @@
         .chat-box { background: var(--bg); padding: 15px; border-radius: 5px; min-height: 100px; margin-top: 15px; white-space: pre-wrap;}
         .loader { display: none; font-size: 0.9rem; color: #666; font-style: italic; margin-bottom: 15px;}
         #globalLoader { display: block; font-size: 1.2rem; margin-bottom: 20px; color: var(--primary); font-weight: bold; }
+
+        /* MODAL CSS */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .modal-content h3 { margin-top: 0; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .form-grid div.full-width { grid-column: span 2; }
+        .modal-btns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -60,7 +72,7 @@
         <h2>➕ Manage Database</h2>
         <div class="mode-toggle">
             <label><input type="radio" name="entryMode" value="new" checked onchange="toggleMode()"> Add New</label>
-            <label><input type="radio" name="entryMode" value="update" onchange="toggleMode()"> Edit/Update</label>
+            <label><input type="radio" name="entryMode" value="update" onchange="toggleMode()"> AI Merge/Update</label>
         </div>
         <select id="updateSelect" style="display: none;"></select>
         <p style="font-size: 0.8rem; color: #666;" id="pasteInstructions">Paste Redfin/Zillow content here (Ctrl+A -> Ctrl+C):</p>
@@ -103,13 +115,28 @@
         </div>
     </div>
 
+    <!-- MANUAL EDIT MODAL -->
+    <div id="editModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>✏️ Manual Edit Override</h3>
+            <div id="editFormFields" class="form-grid"></div>
+            <div class="modal-btns">
+                <button onclick="closeModal()" style="background: #6c757d; width:auto;">Cancel</button>
+                <button id="saveEditBtn" onclick="saveManualEdit()" style="width:auto;">Save Changes</button>
+            </div>
+            <div id="modalLoader" class="loader" style="text-align: right; margin-top:10px;">Saving to Cloud...</div>
+        </div>
+    </div>
+
     <script>
+        // PUT YOUR WORKER URL HERE
         const WORKER_URL = "https://homes-api.sweet-dream-0ed6.workers.dev/";
 
         const allColumns = ["Images", "Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size", "HOA_Fee", "Year_Built", "Heating_Cooling", "Parking", "Pros", "Cons", "Summary"];
         let visibleColumns = ["Images", "Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size"];
         let homes = [];
         let carouselState = {}; 
+        let editingIndex = null; // Tracks which row is being manually edited
 
         window.onload = async function() {
             try {
@@ -143,48 +170,46 @@
         }
 
         async function apiCall(bodyData) {
-            const response = await fetch(WORKER_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(bodyData)
-            });
-            const data = await response.json();
+            let response;
+            try {
+                response = await fetch(WORKER_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(bodyData)
+                });
+            } catch (networkError) { throw new Error("Network blocked. Turn off ad-blockers/Brave Shields. " + networkError.message); }
+
+            const rawText = await response.text(); 
+            let data;
+            try { data = JSON.parse(rawText); } 
+            catch (jsonError) { throw new Error(`Server returned an empty or invalid response. Status: ${response.status}. Body: "${rawText}"`); }
             if (!response.ok) throw new Error(data.error || "API Request Failed");
             return data;
         }
 
-        // ---------- NEW: GENERATE AI COMPARISON ROW ----------
         async function runComparison(index) {
             if (homes.length < 2) return alert("You need at least 2 homes to generate a comparison.");
-            
             const row = document.getElementById(`ai-row-${index}`);
             const content = document.getElementById(`ai-content-${index}`);
             const btn = document.getElementById(`ai-btn-${index}`);
 
-            // Toggle logic: close it if it's open and already loaded
             if (row.style.display === "table-row" && !content.innerHTML.includes("Loading")) {
-                row.style.display = "none";
-                btn.innerText = "⚖️ Compare";
-                return;
+                row.style.display = "none"; btn.innerText = "⚖️ Compare"; return;
             }
 
-            // Open row and show loading state
             row.style.display = "table-row";
             content.innerHTML = "<em>Analyzing database and comparing homes... 🤖</em>";
             btn.disabled = true;
 
             try {
                 const data = await apiCall({ action: "compare_home", index: index });
-                content.innerHTML = data.analysis; // Inject the HTML formatted by the AI
+                content.innerHTML = data.analysis; 
                 btn.innerText = "Close Analysis";
-            } catch(err) {
-                content.innerHTML = `<span style="color:red">Error: ${err.message}</span>`;
-            }
+            } catch(err) { content.innerHTML = `<span style="color:red">Error: ${err.message}</span>`; }
             btn.disabled = false;
         }
-        // -----------------------------------------------------
 
-async function processEntry() {
+        async function processEntry() {
             const mode = document.querySelector('input[name="entryMode"]:checked').value;
             const container = document.getElementById('rawContent');
             const updateIndex = document.getElementById('updateSelect').value;
@@ -202,10 +227,8 @@ async function processEntry() {
             document.getElementById('submitBtn').disabled = true;
             
             try {
-                // FIXED LINE BELOW:
                 let payload = { action: mode === "update" ? "update" : "extract", text: container.innerText, imageUrls: imageUrls };
                 if (mode === "update") payload.index = parseInt(updateIndex);
-
                 const data = await apiCall(payload);
                 homes = data.homes; 
                 container.innerHTML = ''; 
@@ -216,16 +239,61 @@ async function processEntry() {
             document.getElementById('submitBtn').disabled = false;
         }
 
-        async function askQuestion() {
-            const question = document.getElementById('chatInput').value;
-            if (!question) return;
-            document.getElementById('chatLoader').style.display = 'block';
-            try {
-                const data = await apiCall({ action: "chat", question: question });
-                document.getElementById('chatOutput').innerText = data.answer;
-            } catch (err) { document.getElementById('chatOutput').innerText = "Error: " + err.message; }
-            document.getElementById('chatLoader').style.display = 'none';
+        // --- MANUAL EDIT LOGIC ---
+        function openEditModal(index) {
+            editingIndex = index;
+            const home = homes[index];
+            
+            // Dynamically generate form fields for everything EXCEPT images
+            const formHtml = allColumns.filter(c => c !== 'Images').map(col => {
+                const isLongText = ["Pros", "Cons", "Summary"].includes(col);
+                const value = (home[col] || '').replace(/"/g, '&quot;'); // Prevent breaking HTML
+                
+                if (isLongText) {
+                    return `<div class="full-width" style="margin-bottom:10px;">
+                        <label style="font-size:0.8rem; font-weight:bold;">${col}</label><br>
+                        <textarea id="edit-${col}" style="height:60px;">${value}</textarea>
+                    </div>`;
+                } else {
+                    return `<div style="margin-bottom:10px;">
+                        <label style="font-size:0.8rem; font-weight:bold;">${col}</label><br>
+                        <input type="text" id="edit-${col}" value="${value}" />
+                    </div>`;
+                }
+            }).join("");
+            
+            document.getElementById('editFormFields').innerHTML = formHtml;
+            document.getElementById('editModal').style.display = 'flex';
         }
+
+        function closeModal() {
+            document.getElementById('editModal').style.display = 'none';
+            editingIndex = null;
+        }
+
+        async function saveManualEdit() {
+            document.getElementById('modalLoader').style.display = 'block';
+            document.getElementById('saveEditBtn').disabled = true;
+
+            try {
+                // Copy existing home so we don't lose the Images
+                const updatedHome = { ...homes[editingIndex] };
+                
+                // Overwrite keys with new form values
+                allColumns.filter(c => c !== 'Images').forEach(col => {
+                    updatedHome[col] = document.getElementById(`edit-${col}`).value;
+                });
+
+                const data = await apiCall({ action: "manual_edit", index: editingIndex, homeData: updatedHome });
+                homes = data.homes;
+                renderTable();
+                closeModal();
+            } catch (err) { alert("Error saving edits: " + err.message); }
+
+            document.getElementById('modalLoader').style.display = 'none';
+            document.getElementById('saveEditBtn').disabled = false;
+        }
+        // -------------------------
 
         async function deleteHome() {
             const index = document.getElementById('deleteSelect').value;
@@ -247,9 +315,7 @@ async function processEntry() {
         function changeSlide(homeIndex, direction) {
             let imgs = homes[homeIndex].Images || [];
             if(imgs.length===0 && homes[homeIndex].Image && homes[homeIndex].Image !== "N/A") imgs = [homes[homeIndex].Image];
-            
-            let max = imgs.length;
-            let current = carouselState[homeIndex] || 0;
+            let max = imgs.length; let current = carouselState[homeIndex] || 0;
             document.getElementById(`img-${homeIndex}-${current}`).classList.remove('active');
             
             current += direction;
@@ -270,9 +336,8 @@ async function processEntry() {
                 togglesDiv.innerHTML += `<label><input type="checkbox" onchange="toggleColumn('${col}')" ${checked}> ${col}</label>`;
             });
 
-            // ADD THE AI INSIGHTS COLUMN HEADER
             const thead = document.getElementById('tableHeader');
-            thead.innerHTML = visibleColumns.map(col => `<th>${col}</th>`).join("") + `<th>AI Insights</th>`;
+            thead.innerHTML = visibleColumns.map(col => `<th>${col}</th>`).join("") + `<th>Actions</th>`;
 
             const tbody = document.getElementById('tableBody');
             carouselState = {}; 
@@ -283,7 +348,6 @@ async function processEntry() {
                 tbody.innerHTML = homes.map((home, homeIndex) => {
                     carouselState[homeIndex] = 0; 
                     
-                    // Generate regular columns
                     let columnsHtml = visibleColumns.map(col => {
                         if (col === "Images") {
                             let imgs = home.Images || (home.Image && home.Image !== "N/A" ? [home.Image] : []);
@@ -305,10 +369,14 @@ async function processEntry() {
                         return `<td>${home[col] || "N/A"}</td>`;
                     }).join("");
 
-                    // Add Compare Button
-                    columnsHtml += `<td><button id="ai-btn-${homeIndex}" class="ai-btn" onclick="runComparison(${homeIndex})">⚖️ Compare</button></td>`;
+                    // NEW ACTION BUTTONS COLUMN
+                    columnsHtml += `<td>
+                        <div class="action-btns">
+                            <button id="ai-btn-${homeIndex}" class="ai-btn" onclick="runComparison(${homeIndex})">⚖️ Compare</button>
+                            <button class="edit-btn" onclick="openEditModal(${homeIndex})">✏️ Edit</button>
+                        </div>
+                    </td>`;
                     
-                    // Add Hidden AI Row right underneath it
                     let aiRow = `<tr id="ai-row-${homeIndex}" class="ai-row">
                                     <td colspan="${visibleColumns.length + 1}">
                                         <div id="ai-content-${homeIndex}" class="ai-content"></div>
