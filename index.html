@@ -50,9 +50,7 @@
         
         .global-chart-container { position: relative; height: 230px; width: 100%; }
         #map { height: 230px; width: 100%; border-radius: 5px; z-index: 1;}
-        
         .map-marker { border-radius: 50%; color: white; text-align: center; line-height: 26px; font-weight: bold; font-size: 13px; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.5); text-shadow: 1px 1px 2px rgba(0,0,0,0.5);}
-
         .history-chart-container { position: relative; height: 150px; width: 100%; }
         
         .table-controls { margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;}
@@ -85,14 +83,15 @@
         .carousel-btn.right { right: 5px; }
         .carousel-counter { position: absolute; bottom: 5px; right: 5px; background: rgba(0,0,0,0.7); color: white; padding: 3px 8px; border-radius: 10px; font-size: 11px; z-index: 2; pointer-events: none;}
 
-        .lightbox-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 2000; flex-direction: column; align-items: center; justify-content: center; }
-        .lightbox-close { position: absolute; top: 20px; right: 20px; background: transparent; color: white; font-size: 2rem; border: none; padding: 0; cursor: pointer; width: auto; margin: 0; z-index: 2001;}
-        .lightbox-close:hover { color: #ff4444; }
-        .lightbox-img { max-width: 90%; max-height: 80vh; object-fit: contain; border-radius: 5px; box-shadow: 0 5px 25px rgba(0,0,0,0.5);}
-        .lightbox-controls { display: flex; gap: 20px; margin-top: 20px; align-items: center; }
-        .lightbox-btn { background: rgba(255,255,255,0.2); color: white; border: none; padding: 15px 25px; border-radius: 50px; font-size: 1.5rem; cursor: pointer; width: auto; margin: 0;}
-        .lightbox-btn:hover { background: rgba(255,255,255,0.4); }
-        .lightbox-counter { color: white; font-size: 1.2rem; min-width: 60px; text-align: center; }
+        /* FULL SCREEN GRID GALLERY (NEW) */
+        .gallery-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #111; z-index: 2000; flex-direction: column; }
+        .gallery-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: #000; color: white; border-bottom: 1px solid #333;}
+        .gallery-header h2 { margin: 0; font-size: 1.5rem; font-weight: normal; }
+        .gallery-close { background: transparent; color: white; font-size: 2.5rem; border: none; padding: 0; cursor: pointer; line-height: 1;}
+        .gallery-close:hover { color: #ff4444; }
+        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px; padding: 20px 30px; overflow-y: auto; flex: 1; align-content: flex-start;}
+        .gallery-img { width: 100%; height: 260px; object-fit: cover; border-radius: 8px; cursor: pointer; transition: transform 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.5);}
+        .gallery-img:hover { transform: scale(1.03); z-index: 10; position: relative;}
         
         .chat-input-row { display: flex; gap: 10px; }
         .chat-input-row input { margin-bottom: 0; }
@@ -128,9 +127,11 @@
             .carousel { height: 150px; }
             .form-grid { grid-template-columns: 1fr; gap: 10px;}
             .form-grid div.full-width { grid-column: span 1; }
-            .lightbox-img { max-height: 60vh; }
             .dashboard-grid { grid-template-columns: 1fr; }
             .dashboard-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+            
+            .gallery-grid { grid-template-columns: 1fr; padding: 15px; gap: 10px;}
+            .gallery-header { padding: 15px; }
         }
     </style>
 </head>
@@ -175,7 +176,6 @@
 
             <div id="tableTab" class="tab-content active">
                 
-                <!-- DASHBOARD (MAP & CHART) -->
                 <div class="dashboard-grid" id="dashboardGrid">
                     <div class="dashboard-panel">
                         <div class="dashboard-header">
@@ -224,7 +224,7 @@
         </div>
     </div>
 
-    <!-- MODALS & LIGHTBOXES -->
+    <!-- MODALS & GALLERIES -->
     <div id="editModal" class="modal-overlay">
         <div class="modal-content">
             <h3>✏️ Manual Edit & Photo Manager</h3>
@@ -237,13 +237,14 @@
         </div>
     </div>
 
-    <div id="lightbox" class="lightbox-overlay">
-        <button class="lightbox-close" onclick="closeLightbox()">✖</button>
-        <img id="lightboxImg" class="lightbox-img" src="" alt="Full Screen Home Photo">
-        <div class="lightbox-controls">
-            <button class="lightbox-btn" onclick="changeLightboxSlide(-1)">&#10094;</button>
-            <div id="lightboxCounter" class="lightbox-counter">1 / 1</div>
-            <button class="lightbox-btn" onclick="changeLightboxSlide(1)">&#10095;</button>
+    <!-- NEW FULL SCREEN GALLERY GRID -->
+    <div id="galleryModal" class="gallery-overlay">
+        <div class="gallery-header">
+            <h2 id="galleryTitle">Home Photos</h2>
+            <button class="gallery-close" onclick="closeGallery()">×</button>
+        </div>
+        <div class="gallery-grid" id="galleryGrid">
+            <!-- Images get injected here -->
         </div>
     </div>
 
@@ -251,7 +252,6 @@
         // PUT YOUR WORKER URL HERE
         const WORKER_URL = "https://homes-api.sweet-dream-0ed6.workers.dev/";
 
-        // 🏡 UPDATED COLUMNS LIST
         const allColumns = [
             "Images", "Price_History", "Address", "County", "Price", "Price_per_SqFt", "Beds", "Baths", "SqFt", 
             "Lot_Size", "HOA_Fee", "Year_Built", "Year_Renovated", "Heating_Cooling", "Water", "Basement", 
@@ -259,7 +259,6 @@
             "Noise_Score", "Nearby_Amenities", "Closest_Park", "Pros", "Cons", "Summary"
         ];
         
-        // 🏡 UPDATED DEFAULT VISIBLE COLUMNS
         let visibleColumns = [
             "Images", "Price_History", "Address", "County", "Price", "Price_per_SqFt", "Beds", "Baths", 
             "SqFt", "Year_Built", "Lot_Size", "HOA_Fee", "Features", "School_District", "Noise_Score", "Pros", "Cons"
@@ -271,10 +270,6 @@
         let carouselState = {}; 
         let editingIndex = null; 
         
-        let lbHomeIndex = null;
-        let lbImgIndex = null;
-        let lbImgArray = [];
-
         let globalChartInstance = null;
         let lineChartInstances = {};
         let mapInstance = null;
@@ -422,7 +417,6 @@
                 </div>`;
             }
 
-            // Exclude Price_History array
             const textFieldsHtml = allColumns.filter(c => c !== 'Images' && c !== 'Price_History').map(col => {
                 const isLongText = ["Pros", "Cons", "Summary", "Nearby_Amenities", "Crime_Rate", "School_District", "Grocery_Proximity", "Noise_Score", "Features"].includes(col);
                 const value = String(home[col] || '').replace(/"/g, '&quot;');
@@ -500,36 +494,28 @@
             if(counter) counter.innerText = `${current + 1} / ${max}`;
         }
 
-        function openLightbox(homeIndex) {
-            lbHomeIndex = homeIndex;
-            lbImgArray = homes[homeIndex].Images || [];
-            if(lbImgArray.length === 0 && homes[homeIndex].Image && homes[homeIndex].Image !== "N/A") { lbImgArray = [homes[homeIndex].Image]; }
-            if(lbImgArray.length === 0) return;
+        // ==========================================
+        // NEW GRID GALLERY LOGIC
+        // ==========================================
+        function openGallery(homeIndex) {
+            const home = homes[homeIndex];
+            let imgs = home.Images || [];
+            if(imgs.length === 0 && home.Image && home.Image !== "N/A") { imgs = [home.Image]; }
+            if(imgs.length === 0) return;
 
-            lbImgIndex = carouselState[homeIndex] || 0;
-            updateLightboxUI();
-            document.getElementById('lightbox').style.display = 'flex';
-        }
-
-        function closeLightbox() { document.getElementById('lightbox').style.display = 'none'; }
-
-        function changeLightboxSlide(direction) {
-            lbImgIndex += direction;
-            if (lbImgIndex < 0) lbImgIndex = lbImgArray.length - 1;
-            if (lbImgIndex >= lbImgArray.length) lbImgIndex = 0;
-            updateLightboxUI();
+            // Build Grid HTML
+            const grid = document.getElementById('galleryGrid');
+            grid.innerHTML = imgs.map(src => `<img src="${src}" class="gallery-img" onclick="window.open('${src}', '_blank')">`).join('');
             
-            carouselState[lbHomeIndex] = lbImgIndex;
-            document.querySelectorAll(`.carousel-img[id^="img-${lbHomeIndex}-"]`).forEach(img => img.classList.remove('active'));
-            document.getElementById(`img-${lbHomeIndex}-${lbImgIndex}`).classList.add('active');
-            let counter = document.getElementById(`counter-${lbHomeIndex}`);
-            if(counter) counter.innerText = `${lbImgIndex + 1} / ${lbImgArray.length}`;
+            // Set Header Title
+            let title = home.Address && home.Address !== "N/A" ? home.Address : `Home ${homeIndex+1}`;
+            document.getElementById('galleryTitle').innerText = `${title} (${imgs.length} Photos)`;
+
+            document.getElementById('galleryModal').style.display = 'flex';
         }
 
-        function updateLightboxUI() {
-            document.getElementById('lightboxImg').src = lbImgArray[lbImgIndex];
-            document.getElementById('lightboxCounter').innerText = `${lbImgIndex + 1} / ${lbImgArray.length}`;
-        }
+        function closeGallery() { document.getElementById('galleryModal').style.display = 'none'; }
+
 
         // ==========================================
         // DATA VISUALIZATION
@@ -714,7 +700,8 @@
                         if (col === "Images") {
                             let imgs = home.Images || (home.Image && home.Image !== "N/A" ? [home.Image] : []);
                             if (imgs.length > 0) {
-                                let carouselHtml = `<div class="carousel" onclick="openLightbox(${homeIndex})">`;
+                                // CLICKING THE WRAPPER NOW CALLS openGallery()
+                                let carouselHtml = `<div class="carousel" onclick="openGallery(${homeIndex})">`;
                                 imgs.forEach((src, imgIndex) => {
                                     let activeClass = imgIndex === 0 ? "active" : "";
                                     carouselHtml += `<img src="${src}" id="img-${homeIndex}-${imgIndex}" class="carousel-img ${activeClass}" alt="Home">`;
