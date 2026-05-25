@@ -11,11 +11,14 @@
         /* Sidebar */
         .sidebar { width: 300px; background: white; padding: 20px; border-right: 1px solid var(--border); overflow-y: auto; box-sizing: border-box;}
         .sidebar h2 { font-size: 1.2rem; margin-top: 0; }
-        input, textarea, select, button { width: 100%; margin-bottom: 15px; padding: 10px; border: 1px solid var(--border); border-radius: 5px; box-sizing: border-box; font-family: inherit;}
+        input, select, button { width: 100%; margin-bottom: 15px; padding: 10px; border: 1px solid var(--border); border-radius: 5px; box-sizing: border-box; font-family: inherit;}
         button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: bold; }
         button:hover { background: #0056b3; }
         button:disabled { background: #ccc; cursor: not-allowed; }
-        textarea { height: 150px; resize: vertical; }
+        
+        /* Rich Text Editor for pasting */
+        .rich-text-box { height: 150px; overflow-y: auto; border: 1px solid var(--border); border-radius: 5px; padding: 10px; margin-bottom: 15px; background: #fff; font-size: 0.8rem; }
+        .rich-text-box:empty:before { content: attr(placeholder); color: #999; }
 
         /* Main Content */
         .main { flex: 1; padding: 20px; overflow-y: auto; }
@@ -29,8 +32,9 @@
         .table-controls { margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;}
         .table-controls label { background: var(--bg); padding: 5px 10px; border-radius: 5px; border: 1px solid var(--border); font-size: 0.9rem; cursor: pointer;}
         table { width: 100%; border-collapse: collapse; margin-bottom: 20px;}
-        th, td { border: 1px solid var(--border); padding: 12px; text-align: left; }
+        th, td { border: 1px solid var(--border); padding: 12px; text-align: left; vertical-align: top;}
         th { background: var(--bg); }
+        .home-thumbnail { width: 120px; height: 90px; object-fit: cover; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         
         /* Chat */
         .chat-box { background: var(--bg); padding: 15px; border-radius: 5px; min-height: 100px; margin-top: 15px; white-space: pre-wrap;}
@@ -43,8 +47,11 @@
 
     <div class="sidebar">
         <h2>➕ Add Home</h2>
-        <p style="font-size: 0.8rem; color: #666;">Paste Redfin/Zillow text (Ctrl+A -> Ctrl+C -> Paste here):</p>
-        <textarea id="rawText"></textarea>
+        <p style="font-size: 0.8rem; color: #666;">Paste Redfin/Zillow text (Ctrl+A -> Ctrl+C -> Paste below):</p>
+        
+        <!-- Changed to a Content Editable DIV so images paste successfully -->
+        <div id="rawContent" class="rich-text-box" contenteditable="true" placeholder="Paste rich text here..."></div>
+        
         <button id="addBtn" onclick="extractHome()">Extract & Add Home</button>
         <div id="sidebarLoader" class="loader">Extracting & Saving to Cloud...</div>
     </div>
@@ -76,7 +83,7 @@
 
         <div id="chatTab" class="tab-content">
             <h3>Chat with your Listings</h3>
-            <p>Example: <i>"Which house has the lowest HOA?"</i></p>
+            <p>Example: <i>"Which house has the best backyard?"</i></p>
             <input type="text" id="chatInput" placeholder="Ask a question...">
             <button onclick="askQuestion()">Ask</button>
             <div id="chatLoader" class="loader">Thinking...</div>
@@ -87,11 +94,11 @@
     <script>
         const WORKER_URL = "https://homes.sweet-dream-0ed6.workers.dev/";
 
-        const allColumns = ["Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size", "HOA_Fee", "Year_Built", "Heating_Cooling", "Parking", "Pros", "Cons", "Summary"];
-        let visibleColumns = ["Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size", "HOA_Fee"];
-        let homes = []; // No more local storage!
+        // Added Image to the start of the columns!
+        const allColumns = ["Image", "Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size", "HOA_Fee", "Year_Built", "Heating_Cooling", "Parking", "Pros", "Cons", "Summary"];
+        let visibleColumns = ["Image", "Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size"];
+        let homes = [];
 
-        // Load database on startup
         window.onload = async function() {
             try {
                 const data = await apiCall({ action: "load" });
@@ -122,20 +129,37 @@
         }
 
         async function extractHome() {
-            const rawText = document.getElementById('rawText').value;
-            if (!rawText) return alert("Please paste text first.");
+            const container = document.getElementById('rawContent');
+            const rawHTML = container.innerHTML;
+            const plainText = container.innerText;
+
+            if (!plainText.trim()) return alert("Please paste content first.");
 
             document.getElementById('sidebarLoader').style.display = 'block';
             document.getElementById('addBtn').disabled = true;
+            
             try {
-                // Send text to worker, worker extracts AND saves to Cloud KV, then returns updated list
-                const data = await apiCall({ action: "extract", text: rawText });
-                homes = data.homes; // Update local state with the cloud truth
-                document.getElementById('rawText').value = '';
+                // Find the first good image URL in the pasted HTML
+                let imageUrl = "N/A";
+                const images = container.querySelectorAll('img');
+                for (let img of images) {
+                    let src = img.getAttribute('src') || img.src;
+                    // Ignore tiny icons or blank base64 data images
+                    if (src && !src.startsWith('data:image') && src.includes('http')) {
+                        imageUrl = src;
+                        break;
+                    }
+                }
+
+                // Send text AND image URL to worker
+                const data = await apiCall({ action: "extract", text: plainText, imageUrl: imageUrl });
+                homes = data.homes; 
+                container.innerHTML = ''; // Clear box
                 renderTable();
             } catch (err) {
                 alert("Error: " + err.message);
             }
+            
             document.getElementById('sidebarLoader').style.display = 'none';
             document.getElementById('addBtn').disabled = false;
         }
@@ -147,7 +171,6 @@
             document.getElementById('chatLoader').style.display = 'block';
             document.getElementById('chatOutput').innerText = "";
             try {
-                // We no longer need to send 'homes' as context! The worker reads it directly from the Cloud DB.
                 const data = await apiCall({ action: "chat", question: question });
                 document.getElementById('chatOutput').innerText = data.answer;
             } catch (err) {
@@ -164,7 +187,7 @@
             document.getElementById('deleteBtn').disabled = true;
             try {
                 const data = await apiCall({ action: "delete", index: parseInt(index) });
-                homes = data.homes; // Update list from cloud
+                homes = data.homes; 
                 renderTable();
             } catch (err) {
                 alert("Error deleting home: " + err.message);
@@ -173,7 +196,6 @@
             document.getElementById('deleteBtn').disabled = false;
         }
 
-        // --- UI Rendering ---
         function toggleColumn(col) {
             if (visibleColumns.includes(col)) {
                 visibleColumns = visibleColumns.filter(c => c !== col);
@@ -200,7 +222,17 @@
                 tbody.innerHTML = `<tr><td colspan="${visibleColumns.length}" style="text-align:center;">No homes saved yet. Add one from the sidebar!</td></tr>`;
             } else {
                 tbody.innerHTML = homes.map(home => {
-                    return `<tr>${visibleColumns.map(col => `<td>${home[col] || "N/A"}</td>`).join("")}</tr>`;
+                    return `<tr>${visibleColumns.map(col => {
+                        // SPECIAL LOGIC: IF COLUMN IS IMAGE, RENDER AN IMG TAG!
+                        if (col === "Image") {
+                            if (home[col] && home[col] !== "N/A") {
+                                return `<td><img src="${home[col]}" class="home-thumbnail" alt="Home"></td>`;
+                            } else {
+                                return `<td>No Image</td>`;
+                            }
+                        }
+                        return `<td>${home[col] || "N/A"}</td>`;
+                    }).join("")}</tr>`;
                 }).join("");
             }
 
