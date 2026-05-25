@@ -8,7 +8,6 @@
         :root { --bg: #f8f9fa; --primary: #007bff; --border: #dee2e6; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 0; display: flex; height: 100vh; background: var(--bg); }
         
-        /* Sidebar */
         .sidebar { width: 300px; background: white; padding: 20px; border-right: 1px solid var(--border); overflow-y: auto; box-sizing: border-box;}
         .sidebar h2 { font-size: 1.2rem; margin-top: 0; }
         input, select, button { width: 100%; margin-bottom: 15px; padding: 10px; border: 1px solid var(--border); border-radius: 5px; box-sizing: border-box; font-family: inherit;}
@@ -16,10 +15,12 @@
         button:hover { background: #0056b3; }
         button:disabled { background: #ccc; cursor: not-allowed; }
         
+        /* Edit Mode Toggles */
+        .mode-toggle { display: flex; gap: 10px; margin-bottom: 10px; font-size: 0.9rem; }
+        
         .rich-text-box { height: 150px; overflow-y: auto; border: 1px solid var(--border); border-radius: 5px; padding: 10px; margin-bottom: 15px; background: #fff; font-size: 0.8rem; }
         .rich-text-box:empty:before { content: attr(placeholder); color: #999; }
 
-        /* Main Content */
         .main { flex: 1; padding: 20px; overflow-y: auto; }
         .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid var(--border); }
         .tab { padding: 10px 20px; cursor: pointer; color: #666; font-weight: bold; }
@@ -27,14 +28,13 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; background: white; padding: 20px; border-radius: 8px; border: 1px solid var(--border);}
         
-        /* Table */
         .table-controls { margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;}
         .table-controls label { background: var(--bg); padding: 5px 10px; border-radius: 5px; border: 1px solid var(--border); font-size: 0.9rem; cursor: pointer;}
         table { width: 100%; border-collapse: collapse; margin-bottom: 20px;}
         th, td { border: 1px solid var(--border); padding: 12px; text-align: left; vertical-align: top;}
         th { background: var(--bg); }
         
-        /* CAROUSEL STYLES */
+        /* CAROUSEL */
         .carousel { position: relative; width: 160px; height: 110px; border-radius: 8px; background: #eee; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .carousel-img { width: 100%; height: 100%; object-fit: cover; display: none; }
         .carousel-img.active { display: block; }
@@ -44,7 +44,6 @@
         .carousel-btn.right { right: 5px; }
         .carousel-counter { position: absolute; bottom: 5px; right: 5px; background: rgba(0,0,0,0.7); color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; z-index: 2; pointer-events: none;}
         
-        /* Chat & Loaders */
         .chat-box { background: var(--bg); padding: 15px; border-radius: 5px; min-height: 100px; margin-top: 15px; white-space: pre-wrap;}
         .loader { display: none; font-size: 0.9rem; color: #666; font-style: italic; margin-bottom: 15px;}
         #globalLoader { display: block; font-size: 1.2rem; margin-bottom: 20px; color: var(--primary); font-weight: bold; }
@@ -53,11 +52,22 @@
 <body>
 
     <div class="sidebar">
-        <h2>➕ Add Home</h2>
-        <p style="font-size: 0.8rem; color: #666;">Paste Redfin/Zillow text (Ctrl+A -> Ctrl+C -> Paste below):</p>
-        <div id="rawContent" class="rich-text-box" contenteditable="true" placeholder="Paste rich text here..."></div>
-        <button id="addBtn" onclick="extractHome()">Extract & Add Home</button>
-        <div id="sidebarLoader" class="loader">Extracting & Saving to Cloud...</div>
+        <h2>➕ Manage Database</h2>
+        
+        <!-- Toggle New vs Update -->
+        <div class="mode-toggle">
+            <label><input type="radio" name="entryMode" value="new" checked onchange="toggleMode()"> Add New</label>
+            <label><input type="radio" name="entryMode" value="update" onchange="toggleMode()"> Edit/Update</label>
+        </div>
+        
+        <!-- Appears only when updating -->
+        <select id="updateSelect" style="display: none;"></select>
+
+        <p style="font-size: 0.8rem; color: #666;" id="pasteInstructions">Paste Redfin/Zillow content here (Ctrl+A -> Ctrl+C):</p>
+        <div id="rawContent" class="rich-text-box" contenteditable="true" placeholder="Paste rich text or images here..."></div>
+        
+        <button id="submitBtn" onclick="processEntry()">Extract & Add Home</button>
+        <div id="sidebarLoader" class="loader">Processing to Cloud...</div>
     </div>
 
     <div class="main">
@@ -79,7 +89,7 @@
                 </table>
             </div>
             <hr>
-            <h3>Manage List</h3>
+            <h3>Remove from List</h3>
             <select id="deleteSelect"></select>
             <button id="deleteBtn" onclick="deleteHome()" style="width: auto; background: #dc3545;">Delete Selected Home</button>
             <div id="deleteLoader" class="loader">Deleting from Cloud...</div>
@@ -87,8 +97,7 @@
 
         <div id="chatTab" class="tab-content">
             <h3>Chat with your Listings</h3>
-            <p>Example: <i>"Which house has the best backyard?"</i></p>
-            <input type="text" id="chatInput" placeholder="Ask a question...">
+            <input type="text" id="chatInput" placeholder="Ask a question (e.g. 'Which house is cheapest per sqft?')...">
             <button onclick="askQuestion()">Ask</button>
             <div id="chatLoader" class="loader">Thinking...</div>
             <div class="chat-box" id="chatOutput">Your answer will appear here.</div>
@@ -101,7 +110,7 @@
         const allColumns = ["Images", "Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size", "HOA_Fee", "Year_Built", "Heating_Cooling", "Parking", "Pros", "Cons", "Summary"];
         let visibleColumns = ["Images", "Address", "Price", "Beds", "Baths", "SqFt", "Lot_Size"];
         let homes = [];
-        let carouselState = {}; // Keeps track of which image is showing for each home
+        let carouselState = {}; 
 
         window.onload = async function() {
             try {
@@ -121,6 +130,23 @@
             event.target.classList.add('active');
         }
 
+        function toggleMode() {
+            const mode = document.querySelector('input[name="entryMode"]:checked').value;
+            const updateSelect = document.getElementById('updateSelect');
+            const submitBtn = document.getElementById('submitBtn');
+            const instructions = document.getElementById('pasteInstructions');
+            
+            if (mode === "update") {
+                updateSelect.style.display = 'block';
+                submitBtn.innerText = "Merge & Update Home";
+                instructions.innerText = "Paste NEW images or text to add to this home:";
+            } else {
+                updateSelect.style.display = 'none';
+                submitBtn.innerText = "Extract & Add Home";
+                instructions.innerText = "Paste Redfin/Zillow content here (Ctrl+A -> Ctrl+C):";
+            }
+        }
+
         async function apiCall(bodyData) {
             const response = await fetch(WORKER_URL, {
                 method: "POST",
@@ -132,31 +158,37 @@
             return data;
         }
 
-        async function extractHome() {
+        async function processEntry() {
+            const mode = document.querySelector('input[name="entryMode"]:checked').value;
             const container = document.getElementById('rawContent');
             const plainText = container.innerText;
+            const updateIndex = document.getElementById('updateSelect').value;
 
-            if (!plainText.trim()) return alert("Please paste content first.");
+            // Find valid images
+            let imageUrls = [];
+            const images = container.querySelectorAll('img');
+            for (let img of images) {
+                let src = img.getAttribute('src') || img.src;
+                if (src && src.startsWith('http') && !src.includes('base64')) {
+                    if (!imageUrls.includes(src)) imageUrls.push(src);
+                }
+            }
+
+            if (!plainText.trim() && imageUrls.length === 0) return alert("Please paste content or images first.");
+            if (mode === "update" && updateIndex === "") return alert("Please select a home to update.");
 
             document.getElementById('sidebarLoader').style.display = 'block';
-            document.getElementById('addBtn').disabled = true;
+            document.getElementById('submitBtn').disabled = true;
             
             try {
-                // Find up to 15 valid images in the pasted HTML
-                let imageUrls = [];
-                const images = container.querySelectorAll('img');
-                for (let img of images) {
-                    let src = img.getAttribute('src') || img.src;
-                    if (src && src.startsWith('http') && !src.includes('base64')) {
-                        // Prevent duplicates
-                        if (!imageUrls.includes(src)) imageUrls.push(src);
-                    }
-                }
-                
-                // Cap at 15 images to prevent database bloat
-                imageUrls = imageUrls.slice(0, 15);
+                let payload = {
+                    action: mode === "update" ? "update" : "extract",
+                    text: plainText,
+                    imageUrls: imageUrls
+                };
+                if (mode === "update") payload.index = parseInt(updateIndex);
 
-                const data = await apiCall({ action: "extract", text: plainText, imageUrls: imageUrls });
+                const data = await apiCall(payload);
                 homes = data.homes; 
                 container.innerHTML = ''; 
                 renderTable();
@@ -165,7 +197,7 @@
             }
             
             document.getElementById('sidebarLoader').style.display = 'none';
-            document.getElementById('addBtn').disabled = false;
+            document.getElementById('submitBtn').disabled = false;
         }
 
         async function askQuestion() {
@@ -210,27 +242,18 @@
             renderTable();
         }
 
-        // CAROUSEL LOGIC
         function changeSlide(homeIndex, direction) {
-            // Unify image array logic (supports old 1-image saves and new multi-image saves)
             let imgs = homes[homeIndex].Images || (homes[homeIndex].Image && homes[homeIndex].Image !== "N/A" ? [homes[homeIndex].Image] : []);
             let max = imgs.length;
-            
             let current = carouselState[homeIndex] || 0;
             
-            // Hide current image
             document.getElementById(`img-${homeIndex}-${current}`).classList.remove('active');
-            
-            // Calculate new index
             current += direction;
             if (current < 0) current = max - 1;
             if (current >= max) current = 0;
-            
-            // Show new image and update state
             document.getElementById(`img-${homeIndex}-${current}`).classList.add('active');
-            carouselState[homeIndex] = current;
             
-            // Update counter text
+            carouselState[homeIndex] = current;
             let counter = document.getElementById(`counter-${homeIndex}`);
             if(counter) counter.innerText = `${current + 1} / ${max}`;
         }
@@ -247,30 +270,22 @@
             thead.innerHTML = visibleColumns.map(col => `<th>${col}</th>`).join("");
 
             const tbody = document.getElementById('tableBody');
-            carouselState = {}; // Reset state on render
+            carouselState = {}; 
 
             if (homes.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="${visibleColumns.length}" style="text-align:center;">No homes saved yet. Add one from the sidebar!</td></tr>`;
             } else {
                 tbody.innerHTML = homes.map((home, homeIndex) => {
-                    carouselState[homeIndex] = 0; // Initialize slide index to 0 for each home
-
+                    carouselState[homeIndex] = 0; 
                     return `<tr>${visibleColumns.map(col => {
-                        
                         if (col === "Images") {
-                            // Backwards compatibility check
                             let imgs = home.Images || (home.Image && home.Image !== "N/A" ? [home.Image] : []);
-                            
                             if (imgs.length > 0) {
                                 let carouselHtml = `<div class="carousel">`;
-                                
-                                // Add all images
                                 imgs.forEach((src, imgIndex) => {
                                     let activeClass = imgIndex === 0 ? "active" : "";
                                     carouselHtml += `<img src="${src}" id="img-${homeIndex}-${imgIndex}" class="carousel-img ${activeClass}" alt="Home">`;
                                 });
-
-                                // Add controls if there's more than 1 image
                                 if (imgs.length > 1) {
                                     carouselHtml += `
                                         <button class="carousel-btn left" onclick="changeSlide(${homeIndex}, -1)">&#10094;</button>
@@ -281,18 +296,20 @@
                                 carouselHtml += `</div>`;
                                 return `<td>${carouselHtml}</td>`;
                             } else {
-                                return `<td><div class="carousel" style="display:flex; align-items:center; justify-content:center; color:#999; font-size: 0.8rem;">No Image</div></td>`;
+                                return `<td><div class="carousel" style="display:flex; align-items:center; justify-content:center; color:#999; font-size: 0.8rem;">No Images</div></td>`;
                             }
                         }
-                        
                         return `<td>${home[col] || "N/A"}</td>`;
                     }).join("")}</tr>`;
                 }).join("");
             }
 
-            const deleteSelect = document.getElementById('deleteSelect');
-            deleteSelect.innerHTML = `<option value="">Select a home to remove...</option>` + 
+            // Populate both dropdowns (Update and Delete)
+            const dropdownHTML = `<option value="">Select a home...</option>` + 
                 homes.map((h, i) => `<option value="${i}">${h.Address || "Unnamed Home"}</option>`).join("");
+            
+            document.getElementById('deleteSelect').innerHTML = dropdownHTML;
+            document.getElementById('updateSelect').innerHTML = dropdownHTML;
         }
     </script>
 </body>
