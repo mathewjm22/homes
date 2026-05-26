@@ -16,8 +16,8 @@
         .mobile-topbar { display: none; background: white; padding: 15px 20px; border-bottom: 1px solid var(--border); align-items: center; justify-content: space-between; z-index: 90; }
         .mobile-topbar h1 { margin: 0; font-size: 1.2rem; color: #333; }
         .menu-btn { background: var(--primary); color: white; border: none; padding: 8px 12px; border-radius: 5px; font-weight: bold; cursor: pointer; }
-
-        .sidebar { width: 320px; background: white; padding: 20px; border-right: 1px solid var(--border); overflow-y: auto; box-sizing: border-box; flex-shrink: 0; z-index: 100; transition: transform 0.3s ease; }
+        
+        .sidebar { width: 340px; background: white; padding: 20px; border-right: 1px solid var(--border); overflow-y: auto; box-sizing: border-box; flex-shrink: 0; z-index: 100; transition: transform 0.3s ease; }
         .sidebar-close-btn { display: none; }
         .sidebar h2 { font-size: 1.2rem; margin-top: 0; }
         input, select, button { width: 100%; margin-bottom: 15px; padding: 12px 10px; border: 1px solid var(--border); border-radius: 5px; box-sizing: border-box; font-family: inherit; font-size: 1rem;}
@@ -26,11 +26,14 @@
         button:disabled { background: #ccc; cursor: not-allowed; }
         
         .mode-toggle { display: flex; gap: 10px; margin-bottom: 10px; font-size: 0.9rem; }
-        .rich-text-box { height: 120px; overflow-y: auto; border: 1px solid var(--border); border-radius: 5px; padding: 10px; margin-bottom: 15px; background: #fff; font-size: 0.85rem; }
+        .or-divider { display: flex; align-items: center; text-align: center; margin: 5px 0 15px 0; color: #999; font-size: 0.8rem;}
+        .or-divider::before, .or-divider::after { content: ''; flex: 1; border-bottom: 1px solid #ddd; }
+        .or-divider:not(:empty)::before { margin-right: .5em; }
+        .or-divider:not(:empty)::after { margin-left: .5em; }
+        .rich-text-box { height: 100px; overflow-y: auto; border: 1px solid var(--border); border-radius: 5px; padding: 10px; margin-bottom: 15px; background: #fff; font-size: 0.85rem; }
         .rich-text-box:empty:before { content: attr(placeholder); color: #999; }
-        
         .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 95; }
-
+        
         .main-wrapper { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .main { flex: 1; padding: 20px; overflow-y: auto; position: relative; }
         .desktop-title { margin-top: 0; }
@@ -41,30 +44,31 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; background: white; padding: 20px; border-radius: 8px; border: 1px solid var(--border);}
         
-        /* DASHBOARD (MAP & CHART) */
+        /* DASHBOARD GRID */
         .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; display: none;}
         .dashboard-panel { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);}
         .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .dashboard-header h3 { margin: 0; font-size: 1.1rem;}
         .dashboard-header select { width: 180px; margin: 0; padding: 5px; font-size: 0.9rem;}
-        
         .global-chart-container { position: relative; height: 230px; width: 100%; }
         #map { height: 230px; width: 100%; border-radius: 5px; z-index: 1;}
         .map-marker { border-radius: 50%; color: white; text-align: center; line-height: 26px; font-weight: bold; font-size: 13px; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.5); text-shadow: 1px 1px 2px rgba(0,0,0,0.5);}
         .history-chart-container { position: relative; height: 150px; width: 100%; }
         
+        /* TABLE */
         .table-controls { margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;}
         .table-controls label { background: var(--bg); padding: 8px 12px; border-radius: 5px; border: 1px solid var(--border); font-size: 0.9rem; cursor: pointer; }
-        
         .table-wrapper { overflow-x: auto; max-width: 100%; border: 1px solid var(--border); border-radius: 8px; background: white; position: relative; z-index: 1;}
         table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 600px; }
         th, td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 15px 12px; text-align: left; vertical-align: top; }
-        
         th:first-child { background: #f4f6f9; position: sticky; left: 0; z-index: 2; width: 130px; font-weight: 800; border-right: 2px solid #ddd; box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1); }
         th:not(:first-child), td { min-width: 280px; max-width: 350px; background: white; position: relative; z-index: 1; }
         thead th { background: var(--bg); font-size: 1.1rem; color: var(--primary); position: sticky; top: 0; z-index: 3; }
         thead th:first-child { z-index: 4; } 
         
+        .link-btn { display: inline-block; background: #eef5ff; color: var(--primary); text-decoration: none; padding: 6px 12px; border-radius: 5px; font-weight: bold; border: 1px solid #cce0ff; font-size: 0.9rem; }
+        .link-btn:hover { background: #cce0ff; }
+
         .action-btns { display: flex; gap: 10px; flex-direction: column; position: relative; z-index: 10;}
         .ai-btn { background: #28a745; margin-bottom: 0; width: 100%; padding: 10px;}
         .ai-btn:hover { background: #218838; }
@@ -74,6 +78,7 @@
         .ai-content p { margin-top: 0; }
         .ai-content b { color: var(--primary); display: block; margin-top: 10px; border-bottom: 1px solid #ccc; padding-bottom: 3px; }
 
+        /* CAROUSEL & GALLERIES */
         .carousel { position: relative; width: 100%; height: 180px; border-radius: 8px; background: #eee; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.1); cursor: pointer;}
         .carousel-img { width: 100%; height: 100%; object-fit: cover; display: none; }
         .carousel-img.active { display: block; }
@@ -82,8 +87,7 @@
         .carousel-btn.left { left: 5px; }
         .carousel-btn.right { right: 5px; }
         .carousel-counter { position: absolute; bottom: 5px; right: 5px; background: rgba(0,0,0,0.7); color: white; padding: 3px 8px; border-radius: 10px; font-size: 11px; z-index: 2; pointer-events: none;}
-
-        /* FULL SCREEN GRID GALLERY (NEW) */
+        
         .gallery-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #111; z-index: 2000; flex-direction: column; }
         .gallery-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: #000; color: white; border-bottom: 1px solid #333;}
         .gallery-header h2 { margin: 0; font-size: 1.5rem; font-weight: normal; }
@@ -92,7 +96,8 @@
         .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px; padding: 20px 30px; overflow-y: auto; flex: 1; align-content: flex-start;}
         .gallery-img { width: 100%; height: 260px; object-fit: cover; border-radius: 8px; cursor: pointer; transition: transform 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.5);}
         .gallery-img:hover { transform: scale(1.03); z-index: 10; position: relative;}
-        
+
+        /* CHAT & MODALS */
         .chat-input-row { display: flex; gap: 10px; }
         .chat-input-row input { margin-bottom: 0; }
         .chat-input-row button { width: 80px; margin-bottom: 0; }
@@ -129,7 +134,6 @@
             .form-grid div.full-width { grid-column: span 1; }
             .dashboard-grid { grid-template-columns: 1fr; }
             .dashboard-header { flex-direction: column; align-items: flex-start; gap: 10px; }
-            
             .gallery-grid { grid-template-columns: 1fr; padding: 15px; gap: 10px;}
             .gallery-header { padding: 15px; }
         }
@@ -141,7 +145,6 @@
         <h1>🏡 Home Comparator</h1>
         <button class="menu-btn" onclick="toggleSidebar()">☰ Menu</button>
     </div>
-
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
     <div class="sidebar" id="sidebar">
@@ -152,10 +155,13 @@
             <label><input type="radio" name="entryMode" value="update" onchange="toggleMode()"> AI Merge</label>
         </div>
         <select id="updateSelect" style="display: none;"></select>
-        <p style="font-size: 0.8rem; color: #666;" id="pasteInstructions">Paste Redfin/Zillow content here (Ctrl+A -> Ctrl+C):</p>
-        <div id="rawContent" class="rich-text-box" contenteditable="true" placeholder="Paste rich text or images here..."></div>
+        
+        <input type="url" id="linkInput" placeholder="Paste Zillow/Redfin URL here..." style="margin-bottom: 5px;">
+        <div class="or-divider">OR</div>
+        
+        <div id="rawContent" class="rich-text-box" contenteditable="true" placeholder="Paste full webpage text or images here (Ctrl+A -> Ctrl+C)..."></div>
         <button id="submitBtn" onclick="processEntry()">Extract & Add Home</button>
-        <div id="sidebarLoader" class="loader">Processing to Cloud...</div>
+        <div id="sidebarLoader" class="loader">Processing to Cloud (Takes ~5 seconds)...</div>
         
         <hr style="margin: 25px 0; border:0; border-top: 1px solid #ddd;">
         <h3>Remove from List</h3>
@@ -178,9 +184,7 @@
                 
                 <div class="dashboard-grid" id="dashboardGrid">
                     <div class="dashboard-panel">
-                        <div class="dashboard-header">
-                            <h3>📍 Locations</h3>
-                        </div>
+                        <div class="dashboard-header"><h3>📍 Locations</h3></div>
                         <div id="map"></div>
                     </div>
                     
@@ -195,9 +199,7 @@
                                 <option value="HOA_Fee">Compare by HOA Fee</option>
                             </select>
                         </div>
-                        <div class="global-chart-container">
-                            <canvas id="globalChart"></canvas>
-                        </div>
+                        <div class="global-chart-container"><canvas id="globalChart"></canvas></div>
                     </div>
                 </div>
 
@@ -237,30 +239,28 @@
         </div>
     </div>
 
-    <!-- NEW FULL SCREEN GALLERY GRID -->
     <div id="galleryModal" class="gallery-overlay">
         <div class="gallery-header">
             <h2 id="galleryTitle">Home Photos</h2>
             <button class="gallery-close" onclick="closeGallery()">×</button>
         </div>
-        <div class="gallery-grid" id="galleryGrid">
-            <!-- Images get injected here -->
-        </div>
+        <div class="gallery-grid" id="galleryGrid"></div>
     </div>
 
     <script>
         // PUT YOUR WORKER URL HERE
-        const WORKER_URL = "https://homes-api.sweet-dream-0ed6.workers.dev/";
+        const WORKER_URL = "https://homes-api.YOUR-NAME.workers.dev/";
 
+        // 🏡 ADDED Listing_URL to columns
         const allColumns = [
-            "Images", "Price_History", "Address", "County", "Price", "Price_per_SqFt", "Beds", "Baths", "SqFt", 
+            "Images", "Listing_URL", "Price_History", "Address", "County", "Price", "Price_per_SqFt", "Beds", "Baths", "SqFt", 
             "Lot_Size", "HOA_Fee", "Year_Built", "Year_Renovated", "Heating_Cooling", "Water", "Basement", 
             "Parking", "Garage", "Features", "Street_Type", "Crime_Rate", "School_District", "Grocery_Proximity", 
             "Noise_Score", "Nearby_Amenities", "Closest_Park", "Pros", "Cons", "Summary"
         ];
         
         let visibleColumns = [
-            "Images", "Price_History", "Address", "County", "Price", "Price_per_SqFt", "Beds", "Baths", 
+            "Images", "Listing_URL", "Price_History", "Address", "County", "Price", "Price_per_SqFt", "Beds", "Baths", 
             "SqFt", "Year_Built", "Lot_Size", "HOA_Fee", "Features", "School_District", "Noise_Score", "Pros", "Cons"
         ];
         
@@ -269,7 +269,7 @@
         let homes = [];
         let carouselState = {}; 
         let editingIndex = null; 
-        
+
         let globalChartInstance = null;
         let lineChartInstances = {};
         let mapInstance = null;
@@ -305,11 +305,9 @@
             if (mode === "update") {
                 document.getElementById('updateSelect').style.display = 'block';
                 document.getElementById('submitBtn').innerText = "Merge & Update Home";
-                document.getElementById('pasteInstructions').innerText = "Paste NEW images or text to add to this home:";
             } else {
                 document.getElementById('updateSelect').style.display = 'none';
                 document.getElementById('submitBtn').innerText = "Extract & Add Home";
-                document.getElementById('pasteInstructions').innerText = "Paste Redfin/Zillow content here (Ctrl+A -> Ctrl+C):";
             }
         }
 
@@ -321,12 +319,12 @@
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(bodyData)
                 });
-            } catch (networkError) { throw new Error("Network blocked. Turn off ad-blockers/Brave Shields. " + networkError.message); }
+            } catch (networkError) { throw new Error("Network blocked. Turn off ad-blockers/Brave Shields."); }
 
             const rawText = await response.text(); 
             let data;
             try { data = JSON.parse(rawText); } 
-            catch (jsonError) { throw new Error(`Server returned an empty or invalid response. Status: ${response.status}. Body: "${rawText}"`); }
+            catch (jsonError) { throw new Error(`Server returned an invalid response.`); }
             if (!response.ok) throw new Error(data.error || "API Request Failed");
             return data;
         }
@@ -354,6 +352,7 @@
 
         async function processEntry() {
             const mode = document.querySelector('input[name="entryMode"]:checked').value;
+            const linkInput = document.getElementById('linkInput').value;
             const container = document.getElementById('rawContent');
             const updateIndex = document.getElementById('updateSelect').value;
 
@@ -363,21 +362,24 @@
                 if (src && src.startsWith('http') && !src.includes('base64') && !imageUrls.includes(src)) imageUrls.push(src);
             }
 
-            if (!container.innerText.trim() && imageUrls.length === 0) return alert("Please paste content or images.");
+            if (!linkInput.trim() && !container.innerText.trim() && imageUrls.length === 0) return alert("Please paste a link OR content first.");
             if (mode === "update" && updateIndex === "") return alert("Please select a home to update.");
 
             document.getElementById('sidebarLoader').style.display = 'block';
             document.getElementById('submitBtn').disabled = true;
             
             try {
-                let payload = { action: mode === "update" ? "update" : "extract", text: container.innerText, imageUrls: imageUrls };
+                let payload = { action: mode === "update" ? "update" : "extract", link: linkInput, text: container.innerText, imageUrls: imageUrls };
                 if (mode === "update") payload.index = parseInt(updateIndex);
+                
                 const data = await apiCall(payload);
                 homes = data.homes; 
+                
+                document.getElementById('linkInput').value = '';
                 container.innerHTML = ''; 
                 renderTable();
                 if(window.innerWidth <= 768) toggleSidebar(); 
-            } catch (err) { alert("Error: " + err.message); }
+            } catch (err) { alert(err.message); }
             
             document.getElementById('sidebarLoader').style.display = 'none';
             document.getElementById('submitBtn').disabled = false;
@@ -420,7 +422,6 @@
             const textFieldsHtml = allColumns.filter(c => c !== 'Images' && c !== 'Price_History').map(col => {
                 const isLongText = ["Pros", "Cons", "Summary", "Nearby_Amenities", "Crime_Rate", "School_District", "Grocery_Proximity", "Noise_Score", "Features"].includes(col);
                 const value = String(home[col] || '').replace(/"/g, '&quot;');
-                
                 if (isLongText) {
                     return `<div class="full-width" style="margin-bottom:10px;"><label style="font-size:0.85rem; font-weight:bold;">${col.replace(/_/g, ' ')}</label><br><textarea id="edit-${col}" style="height:80px; width:100%; box-sizing:border-box;">${value}</textarea></div>`;
                 } else {
@@ -494,32 +495,22 @@
             if(counter) counter.innerText = `${current + 1} / ${max}`;
         }
 
-        // ==========================================
-        // NEW GRID GALLERY LOGIC
-        // ==========================================
         function openGallery(homeIndex) {
             const home = homes[homeIndex];
             let imgs = home.Images || [];
             if(imgs.length === 0 && home.Image && home.Image !== "N/A") { imgs = [home.Image]; }
             if(imgs.length === 0) return;
 
-            // Build Grid HTML
             const grid = document.getElementById('galleryGrid');
             grid.innerHTML = imgs.map(src => `<img src="${src}" class="gallery-img" onclick="window.open('${src}', '_blank')">`).join('');
-            
-            // Set Header Title
             let title = home.Address && home.Address !== "N/A" ? home.Address : `Home ${homeIndex+1}`;
             document.getElementById('galleryTitle').innerText = `${title} (${imgs.length} Photos)`;
-
             document.getElementById('galleryModal').style.display = 'flex';
         }
 
         function closeGallery() { document.getElementById('galleryModal').style.display = 'none'; }
 
 
-        // ==========================================
-        // DATA VISUALIZATION
-        // ==========================================
         function cleanNumber(str) {
             if (!str || str === "N/A") return 0;
             const parsed = parseInt(String(str).replace(/[^0-9.-]+/g,""));
@@ -529,7 +520,6 @@
         function updateGlobalChart() {
             if (homes.length === 0) return;
             const metric = document.getElementById('chartMetric').value;
-            
             const labels = homes.map((h, i) => {
                 let address = h.Address && h.Address !== "N/A" ? h.Address : `Home ${i+1}`;
                 return address.length > 18 ? address.substring(0,18) + "..." : address;
@@ -538,45 +528,25 @@
             const barColors = homes.map((_, i) => homeColors[i % homeColors.length]);
 
             if (globalChartInstance) globalChartInstance.destroy();
-
             const ctx = document.getElementById('globalChart').getContext('2d');
             globalChartInstance = new Chart(ctx, {
                 type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: metric.replace(/_/g, ' '),
-                        data: dataPoints,
-                        backgroundColor: barColors,
-                        borderWidth: 0,
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true } }
-                }
+                data: { labels: labels, datasets: [{ label: metric.replace(/_/g, ' '), data: dataPoints, backgroundColor: barColors, borderWidth: 0, borderRadius: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
             });
         }
 
         async function updateMap() {
             if (!mapInstance) {
                 mapInstance = L.map('map').setView([39.8283, -98.5795], 4);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; OpenStreetMap contributors'
-                }).addTo(mapInstance);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(mapInstance);
             }
-
             if (markerGroup) { mapInstance.removeLayer(markerGroup); }
             
             let markers = [];
-            
             for (let i = 0; i < homes.length; i++) {
                 let h = homes[i];
-                let lat = h.Latitude;
-                let lon = h.Longitude;
+                let lat = h.Latitude; let lon = h.Longitude;
 
                 if (!lat || lat === "N/A") {
                     if (h.Address && h.Address !== "N/A" && h.Address.length > 5) {
@@ -584,10 +554,7 @@
                             let cleanAddress = h.Address.split(',')[0] + " " + (h.Address.split(',')[1] || "");
                             let res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cleanAddress)}&limit=1`);
                             let data = await res.json();
-                            if (data && data.length > 0) {
-                                lat = parseFloat(data[0].lat);
-                                lon = parseFloat(data[0].lon);
-                            }
+                            if (data && data.length > 0) { lat = parseFloat(data[0].lat); lon = parseFloat(data[0].lon); }
                         } catch(e) {}
                     }
                 }
@@ -596,26 +563,15 @@
                     let color = homeColors[i % homeColors.length];
                     let price = h.Price || "N/A";
                     let title = h.Address && h.Address !== "N/A" ? h.Address : `Home ${i+1}`;
-                    
-                    let customIcon = L.divIcon({
-                        className: 'custom-map-icon',
-                        html: `<div class="map-marker" style="background-color:${color};">${i+1}</div>`,
-                        iconSize: [30, 30],
-                        iconAnchor: [15, 15]
-                    });
-
-                    let marker = L.marker([lat, lon], {icon: customIcon}).bindPopup(`<b>${title}</b><br>${price}`);
-                    markers.push(marker);
+                    let customIcon = L.divIcon({ className: 'custom-map-icon', html: `<div class="map-marker" style="background-color:${color};">${i+1}</div>`, iconSize: [30, 30], iconAnchor: [15, 15] });
+                    markers.push(L.marker([lat, lon], {icon: customIcon}).bindPopup(`<b>${title}</b><br>${price}`));
                 }
             }
 
             if (markers.length > 0) {
                 markerGroup = L.featureGroup(markers).addTo(mapInstance);
-                if (markers.length === 1) {
-                    mapInstance.setView(markers[0].getLatLng(), 13);
-                } else {
-                    mapInstance.fitBounds(markerGroup.getBounds().pad(0.2));
-                }
+                if (markers.length === 1) mapInstance.setView(markers[0].getLatLng(), 13);
+                else mapInstance.fitBounds(markerGroup.getBounds().pad(0.2));
             }
         }
 
@@ -625,38 +581,15 @@
                 if (!home.Price_History || !Array.isArray(home.Price_History) || home.Price_History.length === 0) return;
 
                 const history = [...home.Price_History].sort((a,b) => new Date(a.date) - new Date(b.date));
-                const labels = history.map(h => h.date);
-                const dataPoints = history.map(h => h.price);
-                const events = history.map(h => h.event);
-
+                const labels = history.map(h => h.date); const dataPoints = history.map(h => h.price); const events = history.map(h => h.event);
                 const canvas = document.getElementById(`chart-${i}`);
                 if (!canvas) return;
 
                 const ctx = canvas.getContext('2d');
                 lineChartInstances[i] = new Chart(ctx, {
                     type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: 'Price',
-                            data: dataPoints,
-                            borderColor: '#28a745',
-                            backgroundColor: 'rgba(40, 167, 69, 0.1)',
-                            borderWidth: 2,
-                            pointBackgroundColor: '#28a745',
-                            fill: true,
-                            tension: 0.2
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { 
-                            legend: { display: false },
-                            tooltip: { callbacks: { afterLabel: function(context) { return "Event: " + events[context.dataIndex]; } } }
-                        },
-                        scales: { x: { display: false } }
-                    }
+                    data: { labels: labels, datasets: [{ label: 'Price', data: dataPoints, borderColor: '#28a745', backgroundColor: 'rgba(40, 167, 69, 0.1)', borderWidth: 2, pointBackgroundColor: '#28a745', fill: true, tension: 0.2 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { afterLabel: function(context) { return "Event: " + events[context.dataIndex]; } } } }, scales: { x: { display: false } } }
                 });
             });
         }
@@ -700,7 +633,6 @@
                         if (col === "Images") {
                             let imgs = home.Images || (home.Image && home.Image !== "N/A" ? [home.Image] : []);
                             if (imgs.length > 0) {
-                                // CLICKING THE WRAPPER NOW CALLS openGallery()
                                 let carouselHtml = `<div class="carousel" onclick="openGallery(${homeIndex})">`;
                                 imgs.forEach((src, imgIndex) => {
                                     let activeClass = imgIndex === 0 ? "active" : "";
@@ -715,6 +647,13 @@
                                 bodyHtml += `<td>${carouselHtml}</td>`;
                             } else bodyHtml += `<td><div class="carousel" style="display:flex; align-items:center; justify-content:center; color:#999; font-size: 0.8rem;">No Images</div></td>`;
                         
+                        // NEW LOGIC: Render Link URL nicely
+                        } else if (col === "Listing_URL") {
+                            if (home[col] && home[col].startsWith("http")) {
+                                bodyHtml += `<td><a href="${home[col]}" target="_blank" class="link-btn">View Listing ↗</a></td>`;
+                            } else {
+                                bodyHtml += `<td><em style="color:#999; font-size:0.85rem;">No Link Saved</em></td>`;
+                            }
                         } else if (col === "Price_History") {
                             if (home.Price_History && Array.isArray(home.Price_History) && home.Price_History.length > 0) {
                                 bodyHtml += `<td><div class="history-chart-container"><canvas id="chart-${homeIndex}"></canvas></div></td>`;
@@ -730,20 +669,13 @@
 
                 bodyHtml += `<tr><th>Actions</th>`;
                 homes.forEach((home, homeIndex) => {
-                    bodyHtml += `<td>
-                        <div class="action-btns">
-                            <button class="edit-btn" onclick="openEditModal(${homeIndex})">✏️ Edit Details & Photos</button>
-                        </div>
-                    </td>`;
+                    bodyHtml += `<td><div class="action-btns"><button class="edit-btn" onclick="openEditModal(${homeIndex})">✏️ Edit Details & Photos</button></div></td>`;
                 });
                 bodyHtml += `</tr>`;
 
                 bodyHtml += `<tr><th style="background:#eef5ff; color:var(--primary);">AI Insights</th>`;
                 homes.forEach((home, homeIndex) => {
-                    bodyHtml += `<td style="background:#eef5ff;">
-                        <button id="ai-btn-${homeIndex}" class="ai-btn" onclick="runComparison(${homeIndex})">⚖️ Compare to Others</button>
-                        <div id="ai-content-${homeIndex}" class="ai-content" style="display:none;"></div>
-                    </td>`;
+                    bodyHtml += `<td style="background:#eef5ff;"><button id="ai-btn-${homeIndex}" class="ai-btn" onclick="runComparison(${homeIndex})">⚖️ Compare to Others</button><div id="ai-content-${homeIndex}" class="ai-content" style="display:none;"></div></td>`;
                 });
                 bodyHtml += `</tr>`;
 
